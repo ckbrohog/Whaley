@@ -71,7 +71,7 @@
   </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL (unchanged) -->
 <div id="txModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center">
   <div class="bg-gray-900 w-80 sm:w-96 rounded-lg p-4 space-y-3">
     <div class="flex justify-between items-center">
@@ -89,10 +89,14 @@
 
 <script>
 /* -------- CONFIG -------- */
-const BASE_KEY='ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';        // BaseScan
+const BASE_KEY='ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';
 const ENDPOINT={
   base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`,
   sol :a=>`https://corsproxy.io/?https://api.solscan.io/v2/account/transactions?address=${encodeURIComponent(a)}&limit=10`
+};
+const SYMBOL_HTML={
+  base:'<img src="base-logo.png" alt="Base" class="w-4 h-4 inline-block align-text-bottom"/>',
+  sol :'<img src="sol-logo.png"  alt="Solana" class="w-4 h-4 inline-block align-text-bottom"/>'
 };
 
 /* -------- elements -------- */
@@ -118,12 +122,16 @@ tracked=tracked.map(i=>typeof i==='string'?{a:i,c:'base',n:''}:i);
 const save=()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
 
 /* -------- render cards -------- */
-const cardHTML=o=>`
-  <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
-    <div class="font-semibold text-emerald-400 mb-1">${o.n||' '}</div>
-    <div class="text-[10px] text-gray-400 mb-1">${o.c.toUpperCase()}</div>
-    <div class="text-[10px] break-all">${o.a.slice(0,6)}…${o.a.slice(-4)}</div>
-  </div>`;
+function cardHTML(o){
+  return `
+    <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
+      <div class="flex items-center justify-between mb-1">
+        <span class="font-semibold text-emerald-400">${o.n||' '}</span>
+        ${SYMBOL_HTML[o.c]}
+      </div>
+      <div class="text-[10px] break-all">${o.a.slice(0,6)}…${o.a.slice(-4)}</div>
+    </div>`;
+}
 function render(){
   cardGrid.innerHTML=tracked.map(cardHTML).join('');
   [...cardGrid.children].forEach((el,i)=>el.onclick=()=>openModal(tracked[i].a,tracked[i].c));
