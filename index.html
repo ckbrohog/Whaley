@@ -7,28 +7,59 @@
   <!-- mobile-friendly -->
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  <!-- Tailwind via CDN (zero build) -->
+  <!-- Tailwind CDN (no build) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- favicon uses the same logo -->
- <link rel="icon" type="image/png" href="whaley_middle.png" />
+  <!-- favicon -->
+  <link rel="icon" type="image/png" href="whaley_middle.png" />
 
   <style>
-    /* keep crisp 8-bit pixels on retina screens */
     .pixelated { image-rendering: pixelated; }
+
+    /* keyframes for the 8-bit dive */
+    @keyframes dive {
+      0%   { transform: translateY(0);      opacity: 1; }
+      90%  { transform: translateY(120vh); opacity: 1; }
+      100% { transform: translateY(150vh); opacity: 0; }
+    }
+
+    /* class applied when button is pressed */
+    .dive {
+      animation: dive 1.8s cubic-bezier(.42,0,.58,1) forwards;
+    }
   </style>
 </head>
 
 <body class="bg-gray-900 text-gray-100 flex flex-col items-center
              justify-center min-h-screen space-y-6">
 
-  <!-- 8-bit logo -->
-  <img src="whaley_middle.png"
-     alt="Whaley pixel logo"
-     class="w-32 md:w-40 pixelated" />
+  <!-- 8-bit logo (larger) -->
+  <img id="logo"
+       src="whaley_middle.png"
+       alt="Whaley pixel logo"
+       class="w-64 md:w-72 pixelated select-none" />
 
-  <!-- site title & stub tagline -->
-    <p class="text-gray-400 text-sm">Your future crypto-whale dashboard</p>
+  <!-- tagline -->
+  <p class="text-gray-400 text-sm">Your future crypto-whale dashboard</p>
 
+  <!-- Deep-Dive button -->
+  <button id="diveBtn"
+          class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700
+                 rounded pixelated text-sm tracking-widest">
+    DEEP DIVE
+  </button>
+
+  <script>
+    const logo   = document.getElementById('logo');
+    const button = document.getElementById('diveBtn');
+
+    button.addEventListener('click', () => {
+      // trigger animation
+      logo.classList.add('dive');
+      // disable button to prevent spamming
+      button.disabled = true;
+      button.classList.add('opacity-50','cursor-default');
+    });
+  </script>
 </body>
 </html>
