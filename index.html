@@ -4,43 +4,31 @@
   <meta charset="utf-8" />
   <title>Whaley</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <link rel="icon" type="image/png" href="whaley_middle.png" />
-
   <style>
-    html,body{height:100%;margin:0}                       /* lock scroll */
+    html,body{height:100%;margin:0}
     .pixelated{image-rendering:pixelated}
-
-    @keyframes dive{
-      0%{transform:translateY(0);opacity:1}
-      90%{transform:translateY(115vh);opacity:1}
-      100%{transform:translateY(150vh);opacity:0}
-    }
+    @keyframes dive{0%{transform:translateY(0);opacity:1}
+                    90%{transform:translateY(115vh);opacity:1}
+                    100%{transform:translateY(150vh);opacity:0}}
     .dive{animation:dive 1.4s cubic-bezier(.42,0,.58,1) forwards}
-
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}
-                      to  {opacity:1;transform:translateY(0)}}
+                      to{opacity:1;transform:translateY(0)}}
     .fadeUp{animation:fadeUp .3s ease-out forwards}
   </style>
 </head>
 
 <body class="bg-gray-900 text-gray-100 font-sans">
-
-<!-- fixed wrapper -->
 <div class="fixed inset-0 overflow-hidden flex items-center justify-center">
 
-  <!-- DIVE STAGE -->
+  <!-- dive section -->
   <div id="diveStage" class="flex flex-col items-center gap-4">
     <img id="logo" src="whaley_middle.png"
-         class="w-52 sm:w-64 pixelated select-none" alt="Whaley logo">
-
+         class="w-52 sm:w-64 pixelated select-none" alt="logo">
     <p id="tagline" class="text-gray-400 text-xs sm:text-sm text-center">
       Your future crypto-whale dashboard
     </p>
-
-    <!-- Bronze button -->
     <button id="diveBtn"
             class="px-5 py-2 rounded pixelated text-xs sm:text-sm tracking-widest
                    bg-amber-600 hover:bg-amber-500 active:bg-amber-700">
@@ -48,14 +36,20 @@
     </button>
   </div>
 
-  <!-- HARPOON STAGE -->
+  <!-- harpoon section -->
   <div id="harpoonStage"
        class="hidden flex flex-col items-center gap-4 w-72 sm:w-96">
 
-    <input id="addrInput" type="text" autocomplete="off" spellcheck="false"
-           placeholder="paste whale address…"
-           class="w-full px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
-                  placeholder-gray-500 pixelated outline-none">
+    <div class="flex gap-2 w-full">
+      <input id="addrInput" placeholder="paste whale address…"
+             class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
+                    placeholder-gray-500 pixelated outline-none">
+      <select id="chainSelect"
+              class="px-2 py-2 rounded bg-gray-800 text-xs sm:text-sm outline-none">
+        <option value="base">Base</option>
+        <option value="sol">Solana</option>
+      </select>
+    </div>
 
     <button id="harpoonBtn" disabled
             class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
@@ -74,7 +68,7 @@
   </div>
 </div>
 
-<!-- TX MODAL -->
+<!-- modal -->
 <div id="txModal"
      class="fixed inset-0 bg-black/70 hidden items-center justify-center">
   <div class="bg-gray-900 w-80 sm:w-96 rounded-lg p-4 space-y-3">
@@ -92,10 +86,15 @@
 </div>
 
 <script>
-/* ==========  CONFIG  ========== */
-const API='ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';   // <<— put your key here
+/* ----------------  CONFIG  ---------------- */
+const BASE_KEY = 'YOUR_BASESCAN_KEY';          // leave empty if none
+const ENDPOINTS = {
+  base: addr => `https://api.basescan.org/api?module=account&action=txlist&address=${addr}`+
+                `&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`,
+  sol : addr => `https://public-api.solscan.io/account/transactions?account=${addr}&limit=10`
+};
 
-/* === grab elems === */
+/* ----------- elements ---------- */
 const diveStage=document.getElementById('diveStage');
 const harpoonStage=document.getElementById('harpoonStage');
 const logo=document.getElementById('logo');
@@ -103,77 +102,97 @@ const tag=document.getElementById('tagline');
 const diveBtn=document.getElementById('diveBtn');
 
 const input=document.getElementById('addrInput');
+const chainSel=document.getElementById('chainSelect');
 const harp=document.getElementById('harpoonBtn');
 const list=document.getElementById('trackList');
-const cntLbl=document.getElementById('trackCount');
+const cnt=document.getElementById('trackCount');
 
 const modal=document.getElementById('txModal');
 const spinner=document.getElementById('modalSpinner');
 const txUl=document.getElementById('txList');
 document.getElementById('closeModal').onclick=()=>modal.classList.add('hidden');
 
-/* === persistent whales === */
-const tracked=JSON.parse(localStorage.getItem('trackedWhales')||'[]');
-const save=()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
-const render=()=>{
+/* ----------- state (addr+chain) ---------- */
+const tracked=JSON.parse(localStorage.getItem('trackedWhales')||'[]'); // [{a,c}]
+const save =()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
+function render(){
   list.innerHTML='';
-  tracked.forEach(addr=>{
+  tracked.forEach(({a,c})=>{
     const li=document.createElement('li');
-    li.textContent=addr;
+    li.innerHTML=`<span class="mr-1 text-emerald-400">${c.toUpperCase()}</span>${a}`;
     li.className='cursor-pointer hover:underline';
-    li.onclick=()=>openModal(addr);
+    li.onclick=()=>openModal(a,c);
     list.appendChild(li);
   });
-  cntLbl.textContent=tracked.length;
-};
+  cnt.textContent=tracked.length;
+}
 render();
 
-/* === dive === */
-diveBtn.onclick=()=>{
-  [logo,tag,diveBtn].forEach(el=>el.classList.add('dive'));
-  diveBtn.disabled=true;
-};
+/* ----------- dive ----------- */
+diveBtn.onclick=()=>{[logo,tag,diveBtn].forEach(el=>el.classList.add('dive'));diveBtn.disabled=true;};
 logo.addEventListener('animationend',()=>{
   diveStage.classList.add('hidden');
-  harpoonStage.classList.remove('hidden'); harpoonStage.classList.add('fadeUp');
+  harpoonStage.classList.remove('hidden');harpoonStage.classList.add('fadeUp');
   input.focus();
 });
 
-/* === validation === */
-const ok=v=>/^0x[a-f0-9]{40}$/i.test(v.trim())||(v.trim().length>=32&&v.trim().length<=44);
-input.oninput=()=>harp.disabled=!ok(input.value);
+/* validation */
+const ok=v=>/^0x[a-f0-9]{40}$/i.test(v.trim()) || (v.trim().length>=32&&v.trim().length<=44);
+function validate(){harp.disabled=!ok(input.value);}
+input.oninput=validate; chainSel.onchange=validate;
 
-/* === harpoon === */
+/* harpoon */
 harp.onclick=()=>{
-  const a=input.value.trim(); if(!ok(a))return;
-  tracked.push(a); save(); render();
+  const addr=input.value.trim(), chain=chainSel.value;
+  if(!ok(addr))return;
+  tracked.push({a:addr,c:chain}); save(); render();
   input.value=''; harp.disabled=true; input.focus();
 };
 
-/* === modal helpers === */
-async function fetchTx(addr){
-  const url=`https://api.basescan.org/api?module=account&action=txlist&address=${addr}`+
-            `&page=1&offset=10&sort=desc&apikey=${API}`;
+/* fetchers */
+async function fetchBase(url){
   const j=await fetch(url).then(r=>r.json());
   return j.status==='1'?j.result:[];
 }
-function openModal(addr){
+async function fetchSol(url){
+  const arr=await fetch(url).then(r=>r.json());
+  /* Solscan returns [{signature, blockTime, changeLogs:[...], lamport]…] */
+  return arr.map(o=>({
+    hash:o.signature,
+    timeStamp:o.blockTime,
+    value: o.lamport/1e9,   // SOL
+    dir:'SOL'
+  }));
+}
+async function getTx(addr,chain){
+  const url=ENDPOINTS[chain](addr);
+  return chain==='base'?fetchBase(url):fetchSol(url);
+}
+
+/* modal */
+function openModal(addr,chain){
   spinner.classList.remove('hidden'); txUl.classList.add('hidden'); txUl.innerHTML='';
   modal.classList.remove('hidden'); modal.classList.add('flex');
 
-  fetchTx(addr).then(arr=>{
+  getTx(addr,chain).then(arr=>{
     spinner.classList.add('hidden'); txUl.classList.remove('hidden');
     if(!arr.length){txUl.innerHTML='<li class="text-center text-gray-500">No tx found</li>';return;}
     arr.forEach(t=>{
-      const dir=t.to.toLowerCase()===addr.toLowerCase()?'IN':'OUT';
-      const li=document.createElement('li'); li.className='p-2 rounded bg-gray-800';
+      /* dir calc for Base; Sol sets dir='SOL' already */
+      const dir = chain==='base' ? (t.to.toLowerCase()===addr.toLowerCase()?'IN':'OUT') : t.dir;
+      const li=document.createElement('li');
+      li.className='p-2 rounded bg-gray-800';
+      const explorer = chain==='base' ? `https://basescan.org/tx/${t.hash}`
+                       : `https://solscan.io/tx/${t.hash}`;
+      const amount   = chain==='base'? (+t.value/1e18).toFixed(4)+' ETH'
+                       : t.value.toFixed(4)+' SOL';
       li.innerHTML=`
         <div class="flex justify-between">
-          <span class="${dir==='IN'?'text-green-400':'text-red-400'}">${dir}</span>
-          <span>${(+t.value/1e18).toFixed(4)} ETH</span>
+          <span class="${dir==='IN'?'text-green-400':dir==='OUT'?'text-red-400':'text-cyan-400'}">${dir}</span>
+          <span>${amount}</span>
         </div>
-        <a href="https://basescan.org/tx/${t.hash}" target="_blank"
-           class="text-emerald-400 underline">${t.hash.slice(0,10)}…</a>
+        <a class="text-emerald-400 underline" target="_blank"
+           href="${explorer}">${t.hash.slice(0,10)}…</a>
         <div class="text-gray-500">${new Date(t.timeStamp*1000).toLocaleString()}</div>`;
       txUl.appendChild(li);
     });
