@@ -40,7 +40,6 @@
   <div id="harpoonStage"
        class="hidden flex flex-col items-center gap-4 w-[22rem] sm:w-[26rem]">
 
-    <!-- address · chain · nickname -->
     <div class="flex flex-col sm:flex-row gap-2 w-full">
       <input id="addrInput" placeholder="wallet address"
              class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
@@ -62,7 +61,6 @@
       HARPOON&nbsp;WHALE
     </button>
 
-    <!-- card grid -->
     <details class="w-full bg-gray-800 rounded-lg p-3">
       <summary class="cursor-pointer outline-none select-none">
         🗺️ Tracking (<span id="trackCount">0</span>)
@@ -91,11 +89,10 @@
 
 <script>
 /* -------- CONFIG -------- */
-const BASE_KEY = 'ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';  // ← your key
+const BASE_KEY = 'ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';
 const ENDPOINT = {
-  base : a => `https://api.basescan.org/api?module=account&action=txlist&address=${a}`+
-               `&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`,
-  sol  : a => `https://public-api.solscan.io/account/transactions?account=${a}&limit=10`
+  base : a => `https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`,
+  sol  : a => `https://api.solscan.io/v2/account/transactions?address=${a}&limit=10`
 };
 
 /* -------- elements -------- */
@@ -170,9 +167,16 @@ harpoonBtn.onclick = () => {
 
 /* -------- fetch tx -------- */
 const fetchBase = u => fetch(u).then(r=>r.json()).then(j=>j.status==='1'?j.result:[]);
-const fetchSol  = u => fetch(u).then(r=>r.json())
-                    .then(a=>a.map(o=>({hash:o.signature,timeStamp:o.blockTime,value:o.lamport/1e9,dir:'SOL'})));
-const getTx = (a,c) => c === 'base' ? fetchBase(ENDPOINT.base(a)) : fetchSol(ENDPOINT.sol(a));
+async function fetchSol(u){
+  const arr = await fetch(u).then(r=>r.json());
+  return arr.map(o=>({
+    hash      : o.txHash,
+    timeStamp : o.blockTime,
+    value     : (o.lamport || 0)/1e9,  // lamports → SOL
+    dir       : 'SOL'
+  }));
+}
+const getTx = (a,c) => c==='base' ? fetchBase(ENDPOINT.base(a)) : fetchSol(ENDPOINT.sol(a));
 
 /* -------- modal -------- */
 function openModal(addr,chain){
