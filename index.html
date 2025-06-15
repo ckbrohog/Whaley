@@ -4,60 +4,63 @@
   <meta charset="utf-8" />
   <title>Whaley</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <link rel="icon" type="image/png" href="whaley_middle.png" />
+
   <style>
-    html,body { height:100%; margin:0; }             /* body scroll removed via wrapper */
-    .pixelated{ image-rendering:pixelated }
+    html,body{height:100%;margin:0}                       /* lock scroll */
+    .pixelated{image-rendering:pixelated}
 
     @keyframes dive{
-      0%  { transform:translateY(0);    opacity:1 }
-      90% { transform:translateY(115vh);opacity:1 }
-      100%{ transform:translateY(150vh);opacity:0 }
+      0%{transform:translateY(0);opacity:1}
+      90%{transform:translateY(115vh);opacity:1}
+      100%{transform:translateY(150vh);opacity:0}
     }
-    .dive{ animation:dive 1.4s cubic-bezier(.42,0,.58,1) forwards }
+    .dive{animation:dive 1.4s cubic-bezier(.42,0,.58,1) forwards}
 
-    @keyframes fadeUp{ from{opacity:0;transform:translateY(8px)}
-                       to  {opacity:1;transform:translateY(0)}}
-    .fadeUp{ animation:fadeUp .3s ease-out forwards }
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}
+                      to  {opacity:1;transform:translateY(0)}}
+    .fadeUp{animation:fadeUp .3s ease-out forwards}
   </style>
 </head>
 
 <body class="bg-gray-900 text-gray-100 font-sans">
 
-<!-- fixed wrapper: no page scroll on mobile or desktop -->
+<!-- fixed wrapper -->
 <div class="fixed inset-0 overflow-hidden flex items-center justify-center">
 
-  <!-- === A. DIVE STAGE === -->
+  <!-- DIVE STAGE -->
   <div id="diveStage" class="flex flex-col items-center gap-4">
     <img id="logo" src="whaley_middle.png"
-         class="w-52 sm:w-64 pixelated select-none" alt="Whaley logo" />
+         class="w-52 sm:w-64 pixelated select-none" alt="Whaley logo">
 
     <p id="tagline" class="text-gray-400 text-xs sm:text-sm text-center">
       Your future crypto-whale dashboard
     </p>
 
+    <!-- Bronze button -->
     <button id="diveBtn"
-            class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700
-                   rounded pixelated text-xs sm:text-sm tracking-widest">
+            class="px-5 py-2 rounded pixelated text-xs sm:text-sm tracking-widest
+                   bg-amber-600 hover:bg-amber-500 active:bg-amber-700">
       DEEP&nbsp;DIVE
     </button>
   </div>
 
-  <!-- === B. HARPOON STAGE === -->
+  <!-- HARPOON STAGE -->
   <div id="harpoonStage"
        class="hidden flex flex-col items-center gap-4 w-72 sm:w-96">
 
     <input id="addrInput" type="text" autocomplete="off" spellcheck="false"
            placeholder="paste whale address…"
            class="w-full px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
-                  placeholder-gray-500 pixelated outline-none" />
+                  placeholder-gray-500 pixelated outline-none">
 
     <button id="harpoonBtn" disabled
-            class="w-full py-2 bg-indigo-600 rounded pixelated text-xs sm:text-sm
-                   tracking-widest disabled:opacity-40 disabled:cursor-not-allowed
-                   hover:bg-indigo-500 active:bg-indigo-700">
+            class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
+                   rounded pixelated text-xs sm:text-sm tracking-widest
+                   disabled:opacity-40 disabled:cursor-not-allowed">
       HARPOON&nbsp;WHALE
     </button>
 
@@ -66,61 +69,116 @@
         🗺️ Tracking (<span id="trackCount">0</span>)
       </summary>
       <ul id="trackList"
-          class="text-xs mt-2 space-y-1 break-all max-h-32 overflow-y-auto"></ul>
+          class="mt-2 space-y-1 text-xs break-all max-h-32 overflow-y-auto"></ul>
     </details>
   </div>
 </div>
 
+<!-- TX MODAL -->
+<div id="txModal"
+     class="fixed inset-0 bg-black/70 hidden items-center justify-center">
+  <div class="bg-gray-900 w-80 sm:w-96 rounded-lg p-4 space-y-3">
+    <div class="flex justify-between items-center">
+      <h2 class="text-sm sm:text-base font-semibold">Last&nbsp;10&nbsp;Tx</h2>
+      <button id="closeModal"
+              class="text-gray-400 hover:text-gray-200 text-lg">&times;</button>
+    </div>
+    <div id="modalSpinner" class="flex justify-center py-6">
+      <span class="animate-pulse text-sm text-gray-400">loading…</span>
+    </div>
+    <ul id="txList"
+        class="space-y-2 text-xs max-h-64 overflow-y-auto hidden"></ul>
+  </div>
+</div>
+
 <script>
-/* grab elements */
-const diveStage   = document.getElementById('diveStage');
-const harpoonStage= document.getElementById('harpoonStage');
-const logo        = document.getElementById('logo');
-const tag         = document.getElementById('tagline');
-const diveBtn     = document.getElementById('diveBtn');
+/* ==========  CONFIG  ========== */
+const API='YOUR_BASESCAN_API_KEY';   // <<— put your key here
 
-const input  = document.getElementById('addrInput');
-const harp   = document.getElementById('harpoonBtn');
-const list   = document.getElementById('trackList');
-const cntLbl = document.getElementById('trackCount');
+/* === grab elems === */
+const diveStage=document.getElementById('diveStage');
+const harpoonStage=document.getElementById('harpoonStage');
+const logo=document.getElementById('logo');
+const tag=document.getElementById('tagline');
+const diveBtn=document.getElementById('diveBtn');
 
-/* persistent whales */
-const tracked = JSON.parse(localStorage.getItem('trackedWhales') || '[]');
-const save    = () => localStorage.setItem('trackedWhales', JSON.stringify(tracked));
-const render  = () => {
+const input=document.getElementById('addrInput');
+const harp=document.getElementById('harpoonBtn');
+const list=document.getElementById('trackList');
+const cntLbl=document.getElementById('trackCount');
+
+const modal=document.getElementById('txModal');
+const spinner=document.getElementById('modalSpinner');
+const txUl=document.getElementById('txList');
+document.getElementById('closeModal').onclick=()=>modal.classList.add('hidden');
+
+/* === persistent whales === */
+const tracked=JSON.parse(localStorage.getItem('trackedWhales')||'[]');
+const save=()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
+const render=()=>{
   list.innerHTML='';
-  tracked.forEach(a=>{
+  tracked.forEach(addr=>{
     const li=document.createElement('li');
-    li.textContent=a;
+    li.textContent=addr;
+    li.className='cursor-pointer hover:underline';
+    li.onclick=()=>openModal(addr);
     list.appendChild(li);
   });
-  cntLbl.textContent = tracked.length;
+  cntLbl.textContent=tracked.length;
 };
 render();
 
-/* dive animation */
-diveBtn.onclick = () =>{
-  [logo,tag,diveBtn].forEach(el => el.classList.add('dive'));
-  diveBtn.disabled = true;
+/* === dive === */
+diveBtn.onclick=()=>{
+  [logo,tag,diveBtn].forEach(el=>el.classList.add('dive'));
+  diveBtn.disabled=true;
 };
-logo.addEventListener('animationend', () =>{
+logo.addEventListener('animationend',()=>{
   diveStage.classList.add('hidden');
-  harpoonStage.classList.remove('hidden');
-  harpoonStage.classList.add('fadeUp');
+  harpoonStage.classList.remove('hidden'); harpoonStage.classList.add('fadeUp');
   input.focus();
 });
 
-/* input validation */
+/* === validation === */
 const ok=v=>/^0x[a-f0-9]{40}$/i.test(v.trim())||(v.trim().length>=32&&v.trim().length<=44);
-input.oninput = () => harp.disabled = !ok(input.value);
+input.oninput=()=>harp.disabled=!ok(input.value);
 
-/* harpoon action */
-harp.onclick = () =>{
-  const addr = input.value.trim();
-  if(!ok(addr)) return;
-  tracked.push(addr); save(); render();
-  input.value=''; harp.disabled = true; input.focus();
+/* === harpoon === */
+harp.onclick=()=>{
+  const a=input.value.trim(); if(!ok(a))return;
+  tracked.push(a); save(); render();
+  input.value=''; harp.disabled=true; input.focus();
 };
+
+/* === modal helpers === */
+async function fetchTx(addr){
+  const url=`https://api.basescan.org/api?module=account&action=txlist&address=${addr}`+
+            `&page=1&offset=10&sort=desc&apikey=${API}`;
+  const j=await fetch(url).then(r=>r.json());
+  return j.status==='1'?j.result:[];
+}
+function openModal(addr){
+  spinner.classList.remove('hidden'); txUl.classList.add('hidden'); txUl.innerHTML='';
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+
+  fetchTx(addr).then(arr=>{
+    spinner.classList.add('hidden'); txUl.classList.remove('hidden');
+    if(!arr.length){txUl.innerHTML='<li class="text-center text-gray-500">No tx found</li>';return;}
+    arr.forEach(t=>{
+      const dir=t.to.toLowerCase()===addr.toLowerCase()?'IN':'OUT';
+      const li=document.createElement('li'); li.className='p-2 rounded bg-gray-800';
+      li.innerHTML=`
+        <div class="flex justify-between">
+          <span class="${dir==='IN'?'text-green-400':'text-red-400'}">${dir}</span>
+          <span>${(+t.value/1e18).toFixed(4)} ETH</span>
+        </div>
+        <a href="https://basescan.org/tx/${t.hash}" target="_blank"
+           class="text-emerald-400 underline">${t.hash.slice(0,10)}…</a>
+        <div class="text-gray-500">${new Date(t.timeStamp*1000).toLocaleString()}</div>`;
+      txUl.appendChild(li);
+    });
+  }).catch(()=>spinner.textContent='error loading tx');
+}
 </script>
 </body>
 </html>
