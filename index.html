@@ -74,11 +74,13 @@
              class="flex-1 px-3 py-2 rounded bg-gray-800 placeholder-gray-500 pixelated outline-none" />
     </div>
 
+    <!--  Patched Harpoon Button  -->
     <button id="harpoonBtn" disabled
             class="w-full max-w-lg py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
                    rounded pixelated text-xs sm:text-sm tracking-widest
-                   disabled:opacity-40">
-      HARPOON WHALE
+                   disabled:opacity-40 flex items-center justify-center gap-2">
+      <img src="harpoon-icon.png" alt="" class="w-5 h-5 pixelated select-none" />
+      HARPOON&nbsp;WHALE
     </button>
 
     <!-- Tracking cards -->
@@ -106,52 +108,52 @@
 </div>
 
 <script>
-/* ─────────  Firebase (compat API)  ───────── */
+/* ───────── Firebase ───────── */
 firebase.initializeApp({
-  apiKey:            "AIzaSyBYXcFuIasNsyef8d3uxOz51o4qg4O66wg",
-  authDomain:        "whaley-69708.firebaseapp.com",
-  databaseURL:       "https://whaley-69708-default-rtdb.firebaseio.com",
-  projectId:         "whaley-69708",
-  storageBucket:     "whaley-69708.appspot.com",
-  messagingSenderId: "534890742846",
-  appId:             "1:534890742846:web:bd3f6eff12c8eae4733d6f"
+  apiKey:"AIzaSyBYXcFuIasNsyef8d3uxOz51o4qg4O66wg",
+  authDomain:"whaley-69708.firebaseapp.com",
+  databaseURL:"https://whaley-69708-default-rtdb.firebaseio.com",
+  projectId:"whaley-69708",
+  storageBucket:"whaley-69708.appspot.com",
+  messagingSenderId:"534890742846",
+  appId:"1:534890742846:web:bd3f6eff12c8eae4733d6f"
 });
 const walletsRef = firebase.database().ref("wallets");
 
-/* ─────────  Config / helpers  ───────── */
+/* ───────── Config / helpers ───────── */
 const BASE_KEY = "ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";
 const ENDPOINT = {
-  base: a =>
-    https://api.basescan.org/api?module=account&action=txlist+
-    &address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}
+  base: a => 
+    `https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
 };
 const ICON = {
   base:'<img src="base-logo.png" alt="Base" class="w-4 h-4 inline-block"/>',
-  sol :'<img src="sol-logo.png"  alt="Solana" class="w-4 h-4 inline-block"/>'
+  sol :'<img src="sol-logo.png" alt="Solana" class="w-4 h-4 inline-block"/>'
 };
-const $ = id=>document.getElementById(id);
+const $   = id=>document.getElementById(id);
+const $$  = q => document.querySelectorAll(q);
 
-/* ─────────  Elems  ───────── */
-const diveStage     = $("diveStage"),
-      harpoonStage  = $("harpoonStage"),
-      logo          = $("logo"),
-      diveBtn       = $("diveBtn"),
-      addrInput     = $("addrInput"),
-      chainSelect   = $("chainSelect"),
-      nickInput     = $("nickInput"),
-      harpoonBtn    = $("harpoonBtn"),
-      cardGrid      = $("cardGrid"),
-      trackCount    = $("trackCount"),
-      recentBody    = $("recentBody"),
-      modal         = $("txModal"),
-      spinner       = $("modalSpinner"),
-      txList        = $("txList");
-$("closeModal").onclick = () => modal.classList.add("hidden");
+/* ───────── Elements ───────── */
+const diveStage   = $("diveStage"),
+      harpoonStage= $("harpoonStage"),
+      logo        = $("logo"),
+      diveBtn     = $("diveBtn"),
+      addrInput   = $("addrInput"),
+      chainSelect = $("chainSelect"),
+      nickInput   = $("nickInput"),
+      harpoonBtn  = $("harpoonBtn"),
+      cardGrid    = $("cardGrid"),
+      trackCount  = $("trackCount"),
+      recentBody  = $("recentBody"),
+      modal       = $("txModal"),
+      spinner     = $("modalSpinner"),
+      txList      = $("txList");
+$("closeModal").onclick = ()=>modal.classList.add("hidden");
 
-/* ─────────  Deep Dive animation  ───────── */
-diveBtn.onclick = () => {
+/* ───────── Deep-Dive animation ───────── */
+diveBtn.onclick = ()=>{
   [logo,$("tagline"),diveBtn].forEach(el=>el.classList.add("dive"));
-  diveBtn.disabled = true;
+  diveBtn.disabled=true;
 };
 logo.addEventListener("animationend",()=>{
   diveStage.classList.add("hidden");
@@ -160,88 +162,83 @@ logo.addEventListener("animationend",()=>{
   addrInput.focus();
 });
 
-/* ─────────  Input validation  ───────── */
-const isAddr = v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
-const validate = ()=>
-  harpoonBtn.disabled = !isAddr(addrInput.value.trim()) || !nickInput.value.trim();
+/* ───────── Validation ───────── */
+const isAddr=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
+const validate=()=>harpoonBtn.disabled=!isAddr(addrInput.value.trim())||!nickInput.value.trim();
 [addrInput,nickInput,chainSelect].forEach(el=>el.oninput=validate);
 
-/* ─────────  Harpoon (save)  ───────── */
-harpoonBtn.onclick = ()=>{
-  const a=addrInput.value.trim(), n=nickInput.value.trim(), c=chainSelect.value;
-  if(!isAddr(a)||!n) return;
-  walletsRef.push({a,c,n})
-    .catch(e=>alert(e.message));
-  addrInput.value = ""; nickInput.value = ""; harpoonBtn.disabled = true;
+/* ───────── Save (harpoon) ───────── */
+harpoonBtn.onclick=()=>{
+  const a=addrInput.value.trim(),n=nickInput.value.trim(),c=chainSelect.value;
+  if(!isAddr(a)||!n)return;
+  walletsRef.push({a,c,n}).catch(e=>alert(e.message));
+  addrInput.value="";nickInput.value="";harpoonBtn.disabled=true;
 };
 
-/* ─────────  Render Tracked wallets  ───────── */
+/* ───────── Render tracked whales ───────── */
 let tracked=[];
-const cardHTML = w => 
+const cardHTML=w=>`
   <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
     <div class="flex justify-between mb-1">
       <span class="font-semibold text-emerald-400">${w.n||""}</span>
       ${ICON[w.c]}
     </div>
     <div class="text-[10px] break-all">${w.a.slice(0,6)}…${w.a.slice(-4)}</div>
-  </div>;
-
-walletsRef.on("value", snap=>{
-  tracked=[];
-  snap.forEach(s=>tracked.push(s.val()));
-  cardGrid.innerHTML = tracked.map(cardHTML).join("");
+  </div>`;
+walletsRef.on("value",snap=>{
+  tracked=[]; snap.forEach(s=>tracked.push(s.val()));
+  cardGrid.innerHTML=tracked.map(cardHTML).join("");
   tracked.forEach((w,i)=>cardGrid.children[i].onclick=()=>openModal(w));
-  trackCount.textContent = tracked.length;
-  updateRecent();               // refresh dashboard
+  trackCount.textContent=tracked.length;
+  updateRecent();
 });
 
-/* ─────────  Dashboard updater  ───────── */
-function fetchTxBase(addr){
-  return fetch(ENDPOINT.base(addr))
-          .then(r=>r.json())
-          .then(j=>j.status==="1"?j.result:[]);
+/* ───────── Dashboard updater ───────── */
+function fetchTxBase(a){
+  return fetch(ENDPOINT.base(a)).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);
 }
 async function updateRecent(){
   const all=[];
   await Promise.all(tracked.map(async w=>{
-    const arr = w.c==="base" ? await fetchTxBase(w.a) : [];
-    arr.forEach(t=>{
+    if(w.c!=="base")return;
+    (await fetchTxBase(w.a)).forEach(t=>{
       all.push({
-        t:  +t.timeStamp*1000,
-        w:  w.n||w.a.slice(0,6)+"…",
+        t:+t.timeStamp*1000,
+        w:w.n||w.a.slice(0,6)+"…",
         tok:"ETH",
         amt:(+t.value/1e18).toFixed(4),
-        dir:(t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT")
+        dir:t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT"
       });
     });
   }));
   all.sort((a,b)=>b.t-a.t);
-  recentBody.innerHTML = all.slice(0,10).map(row=>
+  recentBody.innerHTML=all.slice(0,10).map(r=>`
     <tr>
-      <td class="px-2 py-1">${new Date(row.t).toLocaleTimeString()}</td>
-      <td class="px-2 py-1">${row.w}</td>
-      <td class="px-2 py-1">${row.tok}</td>
-      <td class="px-2 py-1">${row.amt}</td>
-      <td class="px-2 py-1">${row.dir}</td>
-    </tr>).join("");
+      <td class="px-2 py-1">${new Date(r.t).toLocaleTimeString()}</td>
+      <td class="px-2 py-1">${r.w}</td>
+      <td class="px-2 py-1">${r.tok}</td>
+      <td class="px-2 py-1">${r.amt}</td>
+      <td class="px-2 py-1">${r.dir}</td>
+    </tr>`).join("");
 }
-setInterval(updateRecent,15_000);
+setInterval(updateRecent,15000);
 
-/* ─────────  Modal viewer  ───────── */
+/* ───────── Modal viewer ───────── */
 function openModal(w){
   spinner.classList.remove("hidden");
   txList.classList.add("hidden");
   txList.innerHTML="";
-  modal.classList.remove("hidden"); modal.classList.add("flex");
-
+  modal.classList.remove("hidden");modal.classList.add("flex");
   fetchTxBase(w.a).then(arr=>{
-    spinner.classList.add("hidden"); txList.classList.remove("hidden");
-    if(!arr.length){txList.innerHTML='<li class="text-center text-gray-500">No tx found</li>';return;}
+    spinner.classList.add("hidden");txList.classList.remove("hidden");
+    if(!arr.length){
+      txList.innerHTML="<li class='text-center text-gray-500'>No tx found</li>";
+      return;
+    }
     arr.slice(0,10).forEach(t=>{
-      const dir = t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT";
-      const li=document.createElement("li");
-      li.className="p-2 rounded bg-gray-800";
-      li.innerHTML=
+      const dir=t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT";
+      const li=document.createElement("li");li.className="p-2 rounded bg-gray-800";
+      li.innerHTML=`
         <div class="flex justify-between">
           <span class="${dir==="IN"?"text-green-400":"text-red-400"}">${dir}</span>
           <span>${(+t.value/1e18).toFixed(4)} ETH</span>
@@ -249,7 +246,7 @@ function openModal(w){
         <a href="https://basescan.org/tx/${t.hash}" target="_blank" class="text-emerald-400 underline">
           ${t.hash.slice(0,10)}…
         </a>
-        <div class="text-gray-500">${new Date(+t.timeStamp*1000).toLocaleString()}</div>;
+        <div class="text-gray-500">${new Date(t.timeStamp*1000).toLocaleString()}</div>`;
       txList.appendChild(li);
     });
   });
@@ -257,4 +254,3 @@ function openModal(w){
 </script>
 </body>
 </html>
-
