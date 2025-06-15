@@ -3,63 +3,94 @@
 <head>
   <meta charset="utf-8" />
   <title>Whaley</title>
-
-  <!-- mobile-friendly -->
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <!-- Tailwind CDN (no build) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- favicon -->
   <link rel="icon" type="image/png" href="whaley_middle.png" />
-
   <style>
-    .pixelated { image-rendering: pixelated; }
+    .pixelated{image-rendering:pixelated}
 
-    /* keyframes for the 8-bit dive */
-    @keyframes dive {
-      0%   { transform: translateY(0);      opacity: 1; }
-      90%  { transform: translateY(120vh); opacity: 1; }
-      100% { transform: translateY(150vh); opacity: 0; }
+    @keyframes dive{
+      0%{transform:translateY(0);opacity:1}
+      90%{transform:translateY(120vh);opacity:1}
+      100%{transform:translateY(150vh);opacity:0}
     }
+    .dive{animation:dive 1.8s cubic-bezier(.42,0,.58,1) forwards}
 
-    /* class applied when button is pressed */
-    .dive {
-      animation: dive 1.8s cubic-bezier(.42,0,.58,1) forwards;
-    }
+    /* simple fade-in for post-dive UI */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}
+                      to{opacity:1;transform:translateY(0)}}
+    .fadeUp{animation:fadeUp .4s ease-out forwards}
   </style>
 </head>
 
 <body class="bg-gray-900 text-gray-100 flex flex-col items-center
              justify-center min-h-screen space-y-6">
 
-  <!-- 8-bit logo (larger) -->
-  <img id="logo"
-       src="whaley_middle.png"
-       alt="Whaley pixel logo"
+  <!-- whale -->
+  <img id="logo" src="whaley_middle.png" alt="Whaley pixel-logo"
        class="w-64 md:w-72 pixelated select-none" />
 
-  <!-- tagline -->
   <p class="text-gray-400 text-sm">Your future crypto-whale dashboard</p>
 
-  <!-- Deep-Dive button -->
+  <!-- deep-dive trigger -->
   <button id="diveBtn"
           class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700
                  rounded pixelated text-sm tracking-widest">
-    DEEP DIVE
+    DEEP&nbsp;DIVE
   </button>
 
-  <script>
-    const logo   = document.getElementById('logo');
-    const button = document.getElementById('diveBtn');
+  <!-- post-dive UI (hidden at first) -->
+  <div id="postDive" class="hidden flex flex-col items-center space-y-4">
 
-    button.addEventListener('click', () => {
-      // trigger animation
-      logo.classList.add('dive');
-      // disable button to prevent spamming
-      button.disabled = true;
-      button.classList.add('opacity-50','cursor-default');
-    });
-  </script>
+    <!-- harpoon button -->
+    <button id="harpoonBtn"
+            class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
+                   rounded pixelated text-sm tracking-widest">
+      HARPOON&nbsp;WHALE
+    </button>
+
+    <!-- tracking tab -->
+    <details id="trackingBox"
+             class="w-64 md:w-80 bg-gray-800 rounded-lg p-4">
+      <summary class="cursor-pointer outline-none select-none">
+        🗺️ Tracking (<span id="trackCount">0</span>)
+      </summary>
+      <ul id="trackList" class="text-xs mt-2 space-y-1"></ul>
+    </details>
+  </div>
+
+<script>
+  const logo      = document.getElementById('logo');
+  const diveBtn   = document.getElementById('diveBtn');
+  const postDive  = document.getElementById('postDive');
+  const harpoonBtn= document.getElementById('harpoonBtn');
+  const trackList = document.getElementById('trackList');
+  const trackCnt  = document.getElementById('trackCount');
+  const tracked   = [];
+
+  diveBtn.onclick = () =>{
+    logo.classList.add('dive');
+    diveBtn.disabled = true;
+    diveBtn.classList.add('opacity-50','cursor-default');
+  };
+
+  /* reveal UI after animation ends */
+  logo.addEventListener('animationend', () =>{
+    postDive.classList.remove('hidden');
+    postDive.classList.add('fadeUp');
+  });
+
+  /* harpoon logic */
+  harpoonBtn.onclick = () =>{
+    const id = `Whale #${tracked.length+1}`;
+    tracked.push(id);
+    // update list
+    const li = document.createElement('li');
+    li.textContent = id;
+    trackList.appendChild(li);
+    trackCnt.textContent = tracked.length;
+  };
+</script>
 </body>
 </html>
