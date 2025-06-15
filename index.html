@@ -11,7 +11,7 @@
     .pixelated{image-rendering:pixelated}
     @keyframes dive{0%{transform:translateY(0);opacity:1}
                     90%{transform:translateY(115vh);opacity:1}
-                    100%{transform:translateY(150vh);opacity:0}}
+                   100%{transform:translateY(150vh);opacity:0}}
     .dive{animation:dive 1.4s cubic-bezier(.42,0,.58,1) forwards}
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}
                       to{opacity:1;transform:translateY(0)}}
@@ -22,7 +22,7 @@
 <body class="bg-gray-900 text-gray-100 font-sans">
 <div class="fixed inset-0 overflow-hidden flex items-center justify-center">
 
-  <!-- dive section -->
+  <!-- DIVE STAGE -->
   <div id="diveStage" class="flex flex-col items-center gap-4">
     <img id="logo" src="whaley_middle.png"
          class="w-52 sm:w-64 pixelated select-none" alt="logo">
@@ -36,12 +36,13 @@
     </button>
   </div>
 
-  <!-- harpoon section -->
+  <!-- HARPOON STAGE -->
   <div id="harpoonStage"
-       class="hidden flex flex-col items-center gap-4 w-72 sm:w-96">
+       class="hidden flex flex-col items-center gap-4 w-[22rem] sm:w-[26rem]">
 
-    <div class="flex gap-2 w-full">
-      <input id="addrInput" placeholder="paste whale address…"
+    <!-- row: address · chain · nickname -->
+    <div class="flex flex-col sm:flex-row gap-2 w-full">
+      <input id="addrInput" placeholder="wallet address"
              class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
                     placeholder-gray-500 pixelated outline-none">
       <select id="chainSelect"
@@ -49,6 +50,9 @@
         <option value="base">Base</option>
         <option value="sol">Solana</option>
       </select>
+      <input id="nickInput" placeholder="nickname"
+             class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
+                    placeholder-gray-500 pixelated outline-none">
     </div>
 
     <button id="harpoonBtn" disabled
@@ -58,19 +62,19 @@
       HARPOON&nbsp;WHALE
     </button>
 
+    <!-- card grid -->
     <details class="w-full bg-gray-800 rounded-lg p-3">
       <summary class="cursor-pointer outline-none select-none">
         🗺️ Tracking (<span id="trackCount">0</span>)
       </summary>
-      <ul id="trackList"
-          class="mt-2 space-y-1 text-xs break-all max-h-32 overflow-y-auto"></ul>
+      <div id="cardGrid"
+           class="mt-2 flex flex-wrap gap-2 max-h-40 overflow-y-auto"></div>
     </details>
   </div>
 </div>
 
-<!-- modal -->
-<div id="txModal"
-     class="fixed inset-0 bg-black/70 hidden items-center justify-center">
+<!-- MODAL unchanged ... -->
+<div id="txModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center">
   <div class="bg-gray-900 w-80 sm:w-96 rounded-lg p-4 space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="text-sm sm:text-base font-semibold">Last&nbsp;10&nbsp;Tx</h2>
@@ -80,31 +84,30 @@
     <div id="modalSpinner" class="flex justify-center py-6">
       <span class="animate-pulse text-sm text-gray-400">loading…</span>
     </div>
-    <ul id="txList"
-        class="space-y-2 text-xs max-h-64 overflow-y-auto hidden"></ul>
+    <ul id="txList" class="space-y-2 text-xs max-h-64 overflow-y-auto hidden"></ul>
   </div>
 </div>
 
 <script>
-/* ----------------  CONFIG  ---------------- */
-const BASE_KEY = 'YOUR_BASESCAN_KEY';          // leave empty if none
-const ENDPOINTS = {
-  base: addr => `https://api.basescan.org/api?module=account&action=txlist&address=${addr}`+
-                `&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`,
-  sol : addr => `https://public-api.solscan.io/account/transactions?account=${addr}&limit=10`
+/* ------------- CONFIG ------------- */
+const BASE_KEY = 'YOUR_BASESCAN_KEY';
+const ENDPOINT = {
+  base: a => `https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`,
+  sol : a => `https://public-api.solscan.io/account/transactions?account=${a}&limit=10`
 };
 
-/* ----------- elements ---------- */
+/* elements */
 const diveStage=document.getElementById('diveStage');
 const harpoonStage=document.getElementById('harpoonStage');
 const logo=document.getElementById('logo');
 const tag=document.getElementById('tagline');
 const diveBtn=document.getElementById('diveBtn');
 
-const input=document.getElementById('addrInput');
+const addrInput=document.getElementById('addrInput');
 const chainSel=document.getElementById('chainSelect');
-const harp=document.getElementById('harpoonBtn');
-const list=document.getElementById('trackList');
+const nickInput=document.getElementById('nickInput');
+const harpoonBtn=document.getElementById('harpoonBtn');
+const cardGrid=document.getElementById('cardGrid');
 const cnt=document.getElementById('trackCount');
 
 const modal=document.getElementById('txModal');
@@ -112,87 +115,75 @@ const spinner=document.getElementById('modalSpinner');
 const txUl=document.getElementById('txList');
 document.getElementById('closeModal').onclick=()=>modal.classList.add('hidden');
 
-/* ----------- state (addr+chain) ---------- */
-const tracked=JSON.parse(localStorage.getItem('trackedWhales')||'[]'); // [{a,c}]
-const save =()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
+/* persistent */
+const tracked=JSON.parse(localStorage.getItem('trackedWhales')||'[]'); // {a,c,n}
+const save=()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
+
+function cardHTML({a,c,n}){
+  return `
+    <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
+      <div class="font-semibold text-emerald-400 mb-1">${n||' '}</div>
+      <div class="text-[10px] text-gray-400 mb-1">${c.toUpperCase()}</div>
+      <div class="text-[10px] break-all">${a.slice(0,6)}…${a.slice(-4)}</div>
+    </div>`;
+}
+
 function render(){
-  list.innerHTML='';
-  tracked.forEach(({a,c})=>{
-    const li=document.createElement('li');
-    li.innerHTML=`<span class="mr-1 text-emerald-400">${c.toUpperCase()}</span>${a}`;
-    li.className='cursor-pointer hover:underline';
-    li.onclick=()=>openModal(a,c);
-    list.appendChild(li);
-  });
-  cnt.textContent=tracked.length;
+  cardGrid.innerHTML = tracked.map(cardHTML).join('');
+  [...cardGrid.children].forEach((card,i)=>card.onclick=()=>openModal(tracked[i].a,tracked[i].c));
+  cnt.textContent = tracked.length;
 }
 render();
 
-/* ----------- dive ----------- */
+/* dive */
 diveBtn.onclick=()=>{[logo,tag,diveBtn].forEach(el=>el.classList.add('dive'));diveBtn.disabled=true;};
 logo.addEventListener('animationend',()=>{
   diveStage.classList.add('hidden');
   harpoonStage.classList.remove('hidden');harpoonStage.classList.add('fadeUp');
-  input.focus();
+  addrInput.focus();
 });
 
 /* validation */
-const ok=v=>/^0x[a-f0-9]{40}$/i.test(v.trim()) || (v.trim().length>=32&&v.trim().length<=44);
-function validate(){harp.disabled=!ok(input.value);}
-input.oninput=validate; chainSel.onchange=validate;
+const isAddr=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
+function validate(){
+  harpoonBtn.disabled=!isAddr(addrInput.value.trim())||!nickInput.value.trim();
+}
+addrInput.oninput=validate; nickInput.oninput=validate; chainSel.onchange=validate;
 
 /* harpoon */
-harp.onclick=()=>{
-  const addr=input.value.trim(), chain=chainSel.value;
-  if(!ok(addr))return;
-  tracked.push({a:addr,c:chain}); save(); render();
-  input.value=''; harp.disabled=true; input.focus();
+harpoonBtn.onclick=()=>{
+  const a=addrInput.value.trim(), n=nickInput.value.trim(), c=chainSel.value;
+  if(!isAddr(a)||!n)return;
+  tracked.push({a,c,n}); save(); render();
+  addrInput.value=''; nickInput.value=''; harpoonBtn.disabled=true; addrInput.focus();
 };
 
-/* fetchers */
-async function fetchBase(url){
-  const j=await fetch(url).then(r=>r.json());
-  return j.status==='1'?j.result:[];
-}
-async function fetchSol(url){
-  const arr=await fetch(url).then(r=>r.json());
-  /* Solscan returns [{signature, blockTime, changeLogs:[...], lamport]…] */
-  return arr.map(o=>({
-    hash:o.signature,
-    timeStamp:o.blockTime,
-    value: o.lamport/1e9,   // SOL
-    dir:'SOL'
-  }));
-}
-async function getTx(addr,chain){
-  const url=ENDPOINTS[chain](addr);
-  return chain==='base'?fetchBase(url):fetchSol(url);
-}
+/* fetch tx */
+async function fetchBase(u){const j=await fetch(u).then(r=>r.json());return j.status==='1'?j.result:[];}
+async function fetchSol(u){const a=await fetch(u).then(r=>r.json());return a.map(o=>({hash:o.signature,timeStamp:o.blockTime,value:o.lamport/1e9,dir:'SOL'}));}
+async function getTx(a,c){return c==='base'?fetchBase(ENDPOINT.base(a)):fetchSol(ENDPOINT.sol(a));}
 
 /* modal */
 function openModal(addr,chain){
   spinner.classList.remove('hidden'); txUl.classList.add('hidden'); txUl.innerHTML='';
   modal.classList.remove('hidden'); modal.classList.add('flex');
-
   getTx(addr,chain).then(arr=>{
     spinner.classList.add('hidden'); txUl.classList.remove('hidden');
     if(!arr.length){txUl.innerHTML='<li class="text-center text-gray-500">No tx found</li>';return;}
     arr.forEach(t=>{
-      /* dir calc for Base; Sol sets dir='SOL' already */
-      const dir = chain==='base' ? (t.to.toLowerCase()===addr.toLowerCase()?'IN':'OUT') : t.dir;
+      const dir=chain==='base'?(t.to?.toLowerCase()===addr.toLowerCase()?'IN':'OUT'):t.dir;
       const li=document.createElement('li');
       li.className='p-2 rounded bg-gray-800';
-      const explorer = chain==='base' ? `https://basescan.org/tx/${t.hash}`
-                       : `https://solscan.io/tx/${t.hash}`;
-      const amount   = chain==='base'? (+t.value/1e18).toFixed(4)+' ETH'
-                       : t.value.toFixed(4)+' SOL';
+      const exp=chain==='base'?`https://basescan.org/tx/${t.hash}`:`https://solscan.io/tx/${t.hash}`;
+      const amt=chain==='base'?(+t.value/1e18).toFixed(4)+' ETH':t.value.toFixed(4)+' SOL';
       li.innerHTML=`
         <div class="flex justify-between">
           <span class="${dir==='IN'?'text-green-400':dir==='OUT'?'text-red-400':'text-cyan-400'}">${dir}</span>
-          <span>${amount}</span>
+          <span>${amt}</span>
         </div>
-        <a class="text-emerald-400 underline" target="_blank"
-           href="${explorer}">${t.hash.slice(0,10)}…</a>
+        <a class="text-emerald-400 underline" target="_blank" href="${exp}">
+          ${t.hash.slice(0,10)}…
+        </a>
         <div class="text-gray-500">${new Date(t.timeStamp*1000).toLocaleString()}</div>`;
       txUl.appendChild(li);
     });
