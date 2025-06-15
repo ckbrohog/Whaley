@@ -10,14 +10,14 @@
   <style>
     .pixelated{image-rendering:pixelated}
 
+    /* shared dive animation */
     @keyframes dive{
-      0%{transform:translateY(0);opacity:1}
-      90%{transform:translateY(120vh);opacity:1}
-      100%{transform:translateY(150vh);opacity:0}
+      0%   {transform:translateY(0);      opacity:1}
+      90%  {transform:translateY(120vh); opacity:1}
+      100% {transform:translateY(150vh); opacity:0}
     }
     .dive{animation:dive 1.8s cubic-bezier(.42,0,.58,1) forwards}
 
-    /* simple fade-in for post-dive UI */
     @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}
                       to{opacity:1;transform:translateY(0)}}
     .fadeUp{animation:fadeUp .4s ease-out forwards}
@@ -27,11 +27,14 @@
 <body class="bg-gray-900 text-gray-100 flex flex-col items-center
              justify-center min-h-screen space-y-6">
 
-  <!-- whale -->
-  <img id="logo" src="whaley_middle.png" alt="Whaley pixel-logo"
-       class="w-64 md:w-72 pixelated select-none" />
+  <!-- logo -->
+  <img id="logo" src="whaley_middle.png"
+       class="w-64 md:w-72 pixelated select-none" alt="Whaley logo" />
 
-  <p class="text-gray-400 text-sm">Your future crypto-whale dashboard</p>
+  <!-- tagline -->
+  <p id="tagline" class="text-gray-400 text-sm">
+    Your future crypto-whale dashboard
+  </p>
 
   <!-- deep-dive trigger -->
   <button id="diveBtn"
@@ -40,17 +43,14 @@
     DEEP&nbsp;DIVE
   </button>
 
-  <!-- post-dive UI (hidden at first) -->
+  <!-- post-dive UI -->
   <div id="postDive" class="hidden flex flex-col items-center space-y-4">
-
-    <!-- harpoon button -->
     <button id="harpoonBtn"
             class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
                    rounded pixelated text-sm tracking-widest">
       HARPOON&nbsp;WHALE
     </button>
 
-    <!-- tracking tab -->
     <details id="trackingBox"
              class="w-64 md:w-80 bg-gray-800 rounded-lg p-4">
       <summary class="cursor-pointer outline-none select-none">
@@ -61,31 +61,33 @@
   </div>
 
 <script>
-  const logo      = document.getElementById('logo');
-  const diveBtn   = document.getElementById('diveBtn');
-  const postDive  = document.getElementById('postDive');
-  const harpoonBtn= document.getElementById('harpoonBtn');
-  const trackList = document.getElementById('trackList');
-  const trackCnt  = document.getElementById('trackCount');
-  const tracked   = [];
+  const logo   = document.getElementById('logo');
+  const tag    = document.getElementById('tagline');
+  const diveBtn= document.getElementById('diveBtn');
+  const post   = document.getElementById('postDive');
 
+  /* 1 — Trigger dive on click */
   diveBtn.onclick = () =>{
-    logo.classList.add('dive');
+    [logo, tag, diveBtn].forEach(el => el.classList.add('dive'));
     diveBtn.disabled = true;
-    diveBtn.classList.add('opacity-50','cursor-default');
+    diveBtn.classList.add('cursor-default','opacity-50');
   };
 
-  /* reveal UI after animation ends */
+  /* 2 — When logo animation ends, reveal post-dive UI */
   logo.addEventListener('animationend', () =>{
-    postDive.classList.remove('hidden');
-    postDive.classList.add('fadeUp');
+    post.classList.remove('hidden');
+    post.classList.add('fadeUp');
   });
 
-  /* harpoon logic */
+  /* Harpoon tracker (unchanged) */
+  const harpoonBtn = document.getElementById('harpoonBtn');
+  const trackList  = document.getElementById('trackList');
+  const trackCnt   = document.getElementById('trackCount');
+  const tracked    = [];
+
   harpoonBtn.onclick = () =>{
     const id = `Whale #${tracked.length+1}`;
     tracked.push(id);
-    // update list
     const li = document.createElement('li');
     li.textContent = id;
     trackList.appendChild(li);
