@@ -79,7 +79,8 @@
             class="w-full max-w-lg py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
                    rounded pixelated text-xs sm:text-sm tracking-widest
                    disabled:opacity-40 flex items-center justify-center gap-2">
-      <img src="harpoon-icon.png" alt="" class="w-5 h-5 pixelated select-none" />
+      <!-- 3 × bigger icon -->
+      <img src="harpoon-icon.png" alt="" class="w-12 h-12 pixelated select-none" />
       HARPOON&nbsp;WHALE
     </button>
 
@@ -160,13 +161,7 @@ const cardHTML=w=>`
     </div>
     <div class="text-[10px] break-all">${w.a.slice(0,6)}…${w.a.slice(-4)}</div>
   </div>`;
-walletsRef.on("value",s=>{
-  tracked=[];s.forEach(x=>tracked.push(x.val()));
-  cardGrid.innerHTML=tracked.map(cardHTML).join("");
-  tracked.forEach((w,i)=>cardGrid.children[i].onclick=()=>openModal(w));
-  trackCount.textContent=tracked.length;
-  updateRecent();
-});
+walletsRef.on("value",s=>{tracked=[];s.forEach(x=>tracked.push(x.val()));cardGrid.innerHTML=tracked.map(cardHTML).join("");tracked.forEach((w,i)=>cardGrid.children[i].onclick=()=>openModal(w));trackCount.textContent=tracked.length;updateRecent();});
 
 /* ───────── Dashboard updater ───────── */
 function fetchTxBase(a){return fetch(ENDPOINT.base(a)).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);}
