@@ -108,7 +108,7 @@
 </div>
 
 <script>
-/* ───────── Firebase ───────── */
+/* ───────── Firebase (compat) ───────── */
 firebase.initializeApp({
   apiKey:"AIzaSyBYXcFuIasNsyef8d3uxOz51o4qg4O66wg",
   authDomain:"whaley-69708.firebaseapp.com",
@@ -121,59 +121,34 @@ firebase.initializeApp({
 const walletsRef = firebase.database().ref("wallets");
 
 /* ───────── Config / helpers ───────── */
-const BASE_KEY = "ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";
-const ENDPOINT = {
-  base: a => 
-    `https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
+const BASE_KEY="ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";
+const ENDPOINT={
+  base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
 };
-const ICON = {
+const ICON={
   base:'<img src="base-logo.png" alt="Base" class="w-4 h-4 inline-block"/>',
-  sol :'<img src="sol-logo.png" alt="Solana" class="w-4 h-4 inline-block"/>'
+  sol :'<img src="sol-logo.png"  alt="Solana" class="w-4 h-4 inline-block"/>'
 };
-const $   = id=>document.getElementById(id);
-const $$  = q => document.querySelectorAll(q);
+const $=id=>document.getElementById(id);
 
 /* ───────── Elements ───────── */
-const diveStage   = $("diveStage"),
-      harpoonStage= $("harpoonStage"),
-      logo        = $("logo"),
-      diveBtn     = $("diveBtn"),
-      addrInput   = $("addrInput"),
-      chainSelect = $("chainSelect"),
-      nickInput   = $("nickInput"),
-      harpoonBtn  = $("harpoonBtn"),
-      cardGrid    = $("cardGrid"),
-      trackCount  = $("trackCount"),
-      recentBody  = $("recentBody"),
-      modal       = $("txModal"),
-      spinner     = $("modalSpinner"),
-      txList      = $("txList");
-$("closeModal").onclick = ()=>modal.classList.add("hidden");
+const diveStage=$("diveStage"),harpoonStage=$("harpoonStage"),logo=$("logo"),diveBtn=$("diveBtn");
+const addrInput=$("addrInput"),chainSelect=$("chainSelect"),nickInput=$("nickInput");
+const harpoonBtn=$("harpoonBtn"),cardGrid=$("cardGrid"),trackCount=$("trackCount");
+const recentBody=$("recentBody"),modal=$("txModal"),spinner=$("modalSpinner"),txList=$("txList");
+$("closeModal").onclick=()=>modal.classList.add("hidden");
 
-/* ───────── Deep-Dive animation ───────── */
-diveBtn.onclick = ()=>{
-  [logo,$("tagline"),diveBtn].forEach(el=>el.classList.add("dive"));
-  diveBtn.disabled=true;
-};
-logo.addEventListener("animationend",()=>{
-  diveStage.classList.add("hidden");
-  harpoonStage.classList.remove("hidden");
-  harpoonStage.classList.add("fadeUp");
-  addrInput.focus();
-});
+/* ───────── Deep-dive ───────── */
+diveBtn.onclick=()=>{[logo,$("tagline"),diveBtn].forEach(e=>e.classList.add("dive"));diveBtn.disabled=true;};
+logo.addEventListener("animationend",()=>{diveStage.classList.add("hidden");harpoonStage.classList.remove("hidden");harpoonStage.classList.add("fadeUp");addrInput.focus();});
 
 /* ───────── Validation ───────── */
 const isAddr=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
 const validate=()=>harpoonBtn.disabled=!isAddr(addrInput.value.trim())||!nickInput.value.trim();
 [addrInput,nickInput,chainSelect].forEach(el=>el.oninput=validate);
 
-/* ───────── Save (harpoon) ───────── */
-harpoonBtn.onclick=()=>{
-  const a=addrInput.value.trim(),n=nickInput.value.trim(),c=chainSelect.value;
-  if(!isAddr(a)||!n)return;
-  walletsRef.push({a,c,n}).catch(e=>alert(e.message));
-  addrInput.value="";nickInput.value="";harpoonBtn.disabled=true;
-};
+/* ───────── Harpoon save ───────── */
+harpoonBtn.onclick=()=>{const a=addrInput.value.trim(),n=nickInput.value.trim(),c=chainSelect.value;if(!isAddr(a)||!n)return;walletsRef.push({a,c,n}).catch(e=>alert(e.message));addrInput.value="";nickInput.value="";harpoonBtn.disabled=true;};
 
 /* ───────── Render tracked whales ───────── */
 let tracked=[];
@@ -185,8 +160,8 @@ const cardHTML=w=>`
     </div>
     <div class="text-[10px] break-all">${w.a.slice(0,6)}…${w.a.slice(-4)}</div>
   </div>`;
-walletsRef.on("value",snap=>{
-  tracked=[]; snap.forEach(s=>tracked.push(s.val()));
+walletsRef.on("value",s=>{
+  tracked=[];s.forEach(x=>tracked.push(x.val()));
   cardGrid.innerHTML=tracked.map(cardHTML).join("");
   tracked.forEach((w,i)=>cardGrid.children[i].onclick=()=>openModal(w));
   trackCount.textContent=tracked.length;
@@ -194,63 +169,12 @@ walletsRef.on("value",snap=>{
 });
 
 /* ───────── Dashboard updater ───────── */
-function fetchTxBase(a){
-  return fetch(ENDPOINT.base(a)).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);
-}
-async function updateRecent(){
-  const all=[];
-  await Promise.all(tracked.map(async w=>{
-    if(w.c!=="base")return;
-    (await fetchTxBase(w.a)).forEach(t=>{
-      all.push({
-        t:+t.timeStamp*1000,
-        w:w.n||w.a.slice(0,6)+"…",
-        tok:"ETH",
-        amt:(+t.value/1e18).toFixed(4),
-        dir:t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT"
-      });
-    });
-  }));
-  all.sort((a,b)=>b.t-a.t);
-  recentBody.innerHTML=all.slice(0,10).map(r=>`
-    <tr>
-      <td class="px-2 py-1">${new Date(r.t).toLocaleTimeString()}</td>
-      <td class="px-2 py-1">${r.w}</td>
-      <td class="px-2 py-1">${r.tok}</td>
-      <td class="px-2 py-1">${r.amt}</td>
-      <td class="px-2 py-1">${r.dir}</td>
-    </tr>`).join("");
-}
+function fetchTxBase(a){return fetch(ENDPOINT.base(a)).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);}
+async function updateRecent(){const all=[];await Promise.all(tracked.map(async w=>{if(w.c!=="base")return;(await fetchTxBase(w.a)).forEach(t=>all.push({t:+t.timeStamp*1000,w:w.n||w.a.slice(0,6)+"…",tok:"ETH",amt:(+t.value/1e18).toFixed(4),dir:t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT"}));}));all.sort((a,b)=>b.t-a.t);recentBody.innerHTML=all.slice(0,10).map(r=>`<tr><td class="px-2 py-1">${new Date(r.t).toLocaleTimeString()}</td><td class="px-2 py-1">${r.w}</td><td class="px-2 py-1">${r.tok}</td><td class="px-2 py-1">${r.amt}</td><td class="px-2 py-1">${r.dir}</td></tr>`).join("");}
 setInterval(updateRecent,15000);
 
 /* ───────── Modal viewer ───────── */
-function openModal(w){
-  spinner.classList.remove("hidden");
-  txList.classList.add("hidden");
-  txList.innerHTML="";
-  modal.classList.remove("hidden");modal.classList.add("flex");
-  fetchTxBase(w.a).then(arr=>{
-    spinner.classList.add("hidden");txList.classList.remove("hidden");
-    if(!arr.length){
-      txList.innerHTML="<li class='text-center text-gray-500'>No tx found</li>";
-      return;
-    }
-    arr.slice(0,10).forEach(t=>{
-      const dir=t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT";
-      const li=document.createElement("li");li.className="p-2 rounded bg-gray-800";
-      li.innerHTML=`
-        <div class="flex justify-between">
-          <span class="${dir==="IN"?"text-green-400":"text-red-400"}">${dir}</span>
-          <span>${(+t.value/1e18).toFixed(4)} ETH</span>
-        </div>
-        <a href="https://basescan.org/tx/${t.hash}" target="_blank" class="text-emerald-400 underline">
-          ${t.hash.slice(0,10)}…
-        </a>
-        <div class="text-gray-500">${new Date(t.timeStamp*1000).toLocaleString()}</div>`;
-      txList.appendChild(li);
-    });
-  });
-}
+function openModal(w){spinner.classList.remove("hidden");txList.classList.add("hidden");txList.innerHTML="";modal.classList.remove("hidden");modal.classList.add("flex");fetchTxBase(w.a).then(arr=>{spinner.classList.add("hidden");txList.classList.remove("hidden");if(!arr.length){txList.innerHTML="<li class='text-center text-gray-500'>No tx found</li>";return;}arr.slice(0,10).forEach(t=>{const dir=t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT";const li=document.createElement("li");li.className="p-2 rounded bg-gray-800";li.innerHTML=`<div class="flex justify-between"><span class="${dir==="IN"?"text-green-400":"text-red-400"}">${dir}</span><span>${(+t.value/1e18).toFixed(4)} ETH</span></div><a href="https://basescan.org/tx/${t.hash}" target="_blank" class="text-emerald-400 underline">${t.hash.slice(0,10)}…</a><div class="text-gray-500">${new Date(t.timeStamp*1000).toLocaleString()}</div>`;txList.appendChild(li);});});}
 </script>
 </body>
 </html>
