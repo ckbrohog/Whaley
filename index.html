@@ -5,7 +5,7 @@
   <title>Whaley – Crypto-Whale Dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  <!-- Tailwind (quick CDN build) -->
+  <!-- Tailwind (quick CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Firebase compat -->
@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
   <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
 
-  <link rel="icon" href="whaley_middle.png" />
+  <link rel="icon" href="whaley_middle.png">
   <style>
     html,body{height:100%;margin:0;-webkit-text-size-adjust:100%;text-size-adjust:100%}
     .pixelated{image-rendering:pixelated}
@@ -30,7 +30,7 @@
 
 <!-- ───────── Splash ───────── -->
 <div id="diveStage" class="fixed inset-0 flex flex-col items-center justify-center gap-4">
-  <img id="logo" src="whaley_middle.png" alt="Whaley logo" class="w-52 sm:w-64 pixelated select-none">
+  <img id="logo" src="whaley_middle.png" class="w-52 sm:w-64 pixelated select-none" alt="Whaley logo">
   <p id="tagline" class="text-gray-400 text-xs sm:text-sm text-center">Your future crypto-whale dashboard</p>
   <button id="diveBtn" class="px-5 py-2 rounded pixelated text-xs sm:text-sm tracking-widest bg-amber-600 hover:bg-amber-500 active:bg-amber-700">DEEP&nbsp;DIVE</button>
 </div>
@@ -113,8 +113,7 @@ const diveStage=$("diveStage"),harpoonStage=$("harpoonStage"),logo=$("logo"),div
 const addrInput=$("addrInput"),nickInput=$("nickInput"),chainSel=$("chainSelect"),harpoonBtn=$("harpoonBtn");
 const cardGrid=$("cardGrid"),trackCount=$("trackCount");
 const recentBody=$("recentBody"),modal=$("txModal"),spinner=$("modalSpinner"),txList=$("txList");
-$("closeModal").onclick=()=>modal.classList.add("hidden");
-$("refreshBtn").onclick=refreshDash;
+$("closeModal").onclick=()=>modal.classList.add("hidden");$("refreshBtn").onclick=refreshDash;
 
 /* ——— Helpers ——— */
 const isAddr=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
@@ -130,13 +129,12 @@ const validate=()=>harpoonBtn.disabled=!isAddr(addrInput.value.trim())||!nickInp
 /* ——— Local fallback ——— */
 let whales=JSON.parse(localStorage.getItem("whaleyLocal")||"[]");
 
-/* ——— Card rendering ——— */
+/* ——— Card template & binding ——— */
 const cardTpl=w=>`
   <div class="group w-36 p-2 bg-gray-800 rounded hover:bg-gray-700 relative">
     <button class="delete absolute -top-1.5 -right-1.5 hidden group-hover:flex text-xs bg-red-600 hover:bg-red-500 rounded-full w-5 h-5 items-center justify-center" title="Delete">✕</button>
     <div class="flex justify-between mb-1">
-      <span class="text-emerald-400 font-semibold">${w.n}</span>
-      ${ICON[w.c]}
+      <span class="text-emerald-400 font-semibold">${w.n}</span>${ICON[w.c]}
     </div>
     <div class="text-[10px] break-all">${w.a.slice(0,6)}…${w.a.slice(-4)}</div>
   </div>`;
@@ -144,37 +142,53 @@ const cardTpl=w=>`
 function bindCard(card,w){
   card.querySelector(".delete").onclick=e=>{
     e.stopPropagation();
-    if(!confirm(`Delete ${w.n}?`)) return;
+    if(!confirm(`Delete ${w.n}?`))return;
     if(w.key?.startsWith("local-")){
       const local=JSON.parse(localStorage.getItem("whaleyLocal")||"[]").filter(x=>x.key!==w.key);
       localStorage.setItem("whaleyLocal",JSON.stringify(local));
     }else if(w.key){walletsRef.child(w.key).remove();}
-    whales=whales.filter(x=>x.key!==w.key);
+    whales=whales.filter(x=>x.key!==w.key&&x.a!==w.a);
     card.remove();trackCount.textContent=whales.length;refreshDash();
   };
   card.onclick=()=>openModal(w);
   card.oncontextmenu=e=>{e.preventDefault();navigator.clipboard.writeText(w.a);notyf.success("Address copied!");};
 }
 
-/* ——— First pull ——— */
-walletsRef.once("value",snap=>{
-  snap.forEach(s=>whales.push({...s.val(),key:s.key}));
-  cardGrid.innerHTML=whales.map(cardTpl).join("");
-  [...cardGrid.children].forEach((c,i)=>bindCard(c,whales[i]));
-  trackCount.textContent=whales.length;
-  refreshDash();
+/* ——— Render local fallback first ——— */
+whales.forEach(w=>{
+  const d=document.createElement("div");d.innerHTML=cardTpl(w);
+  bindCard(d.firstElementChild,w);cardGrid.append(d.firstElementChild);
 });
+trackCount.textContent=whales.length;
 
-/* ——— Live additions ——— */
+/* ——— Live Firebase stream ——— */
 walletsRef.on("child_added",snap=>{
-  const w={...snap.val(),key:snap.key};if(whales.some(x=>x.key===w.key))return;
-  whales.push(w);const wrapper=document.createElement("div");wrapper.innerHTML=cardTpl(w);bindCard(wrapper.firstElementChild,w);cardGrid.prepend(wrapper.firstElementChild);trackCount.textContent=whales.length;refreshDash();
+  const w={...snap.val(),key:snap.key};
+  if(whales.some(x=>x.key===w.key||x.a===w.a)) return;          // skip dupes
+  /* if local copy exists (offline earlier) remove it */
+  whales=whales.filter(x=>x.a!==w.a);
+  const localArr=JSON.parse(localStorage.getItem("whaleyLocal")||"[]").filter(x=>x.a!==w.a);
+  localStorage.setItem("whaleyLocal",JSON.stringify(localArr));
+  whales.push(w);
+  const wrap=document.createElement("div");wrap.innerHTML=cardTpl(w);bindCard(wrap.firstElementChild,w);
+  cardGrid.prepend(wrap.firstElementChild);
+  trackCount.textContent=whales.length;refreshDash();
 });
 
 /* ——— Save wallet ——— */
 harpoonBtn.onclick=()=>{
-  const a=addrInput.value.trim().toLowerCase(),n=nickInput.value.trim(),c=chainSel.value;if(!isAddr(a)||!n)return;
-  walletsRef.push({a,c,n}).then(()=>notyf.success("Whale saved!")).catch(()=>{notyf.error("Cloud save failed – stored locally");const w={a,c,n,key:"local-"+Date.now()};whales.push(w);const d=document.createElement("div");d.innerHTML=cardTpl(w);bindCard(d.firstElementChild,w);cardGrid.prepend(d.firstElementChild);trackCount.textContent=whales.length;localStorage.setItem("whaleyLocal",JSON.stringify(whales.filter(x=>x.key.startsWith("local-"))));});
+  const a=addrInput.value.trim().toLowerCase(),n=nickInput.value.trim(),c=chainSel.value;
+  if(!isAddr(a)||!n)return;
+  if(whales.some(x=>x.a===a)){notyf.error("Address already tracked");return;}
+  walletsRef.push({a,c,n}).then(()=>notyf.success("Whale saved!")).catch(()=>{
+    notyf.error("Cloud save failed – stored locally");
+    const w={a,c,n,key:"local-"+Date.now()};
+    whales.push(w);
+    const d=document.createElement("div");d.innerHTML=cardTpl(w);bindCard(d.firstElementChild,w);
+    cardGrid.prepend(d.firstElementChild);
+    trackCount.textContent=whales.length;
+    localStorage.setItem("whaleyLocal",JSON.stringify(whales.filter(x=>x.key.startsWith("local-"))));
+  });
   addrInput.value="";nickInput.value="";harpoonBtn.disabled=true;
 };
 
@@ -197,7 +211,8 @@ setInterval(refreshDash,5000);
 
 /* ——— Modal viewer ——— */
 function openModal(w){
-  spinner.classList.remove("hidden");txList.classList.add("hidden");txList.innerHTML="";modal.classList.remove("hidden");modal.classList.add("flex");
+  spinner.classList.remove("hidden");txList.classList.add("hidden");txList.innerHTML="";
+  modal.classList.remove("hidden");modal.classList.add("flex");
   (w.c==="base"?baseTx(w.a):solTx(w.a)).then(arr=>{
     spinner.classList.add("hidden");txList.classList.remove("hidden");
     if(!arr.length){txList.innerHTML="<li class='text-center text-gray-500'>No tx found</li>";return;}
@@ -205,7 +220,11 @@ function openModal(w){
       const dir=w.c==="base"?(t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT"):"SIG";
       const link=w.c==="base"?`https://basescan.org/tx/${t.hash}`:`https://solscan.io/tx/${t.hash}`;
       const amt=w.c==="base"?(+t.value/1e18).toFixed(4)+" ETH":"—";
-      return `<li class="p-2 bg-gray-800 rounded"><div class="flex justify-between"><span class="${dir==="IN"?"text-green-400":dir==="OUT"?"text-red-400":"text-cyan-400"}">${dir}</span><span>${amt}</span></div><a href="${link}" target="_blank" class="text-emerald-400 underline">${t.hash.slice(0,10)}…</a><div class="text-gray-500">${new Date(+(t.timeStamp||t.blockTime)*1000).toLocaleString()}</div></li>`;
+      return `<li class="p-2 bg-gray-800 rounded">
+        <div class="flex justify-between"><span class="${dir==="IN"?"text-green-400":dir==="OUT"?"text-red-400":"text-cyan-400"}">${dir}</span><span>${amt}</span></div>
+        <a href="${link}" target="_blank" class="text-emerald-400 underline">${t.hash.slice(0,10)}…</a>
+        <div class="text-gray-500">${new Date(+(t.timeStamp||t.blockTime)*1000).toLocaleString()}</div>
+      </li>`;
     }).join("");
   });
 }
