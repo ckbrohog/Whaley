@@ -5,7 +5,7 @@
   <title>Whaley</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  <!-- Tailwind (Dev CDN – swap out in production) -->
+  <!-- Tailwind (dev CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Firebase SDKs -->
@@ -13,9 +13,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <link rel="icon" type="image/png" href="whaley_middle.png" />
-
   <style>
-    /* lock scroll & normalize text-size */
     html, body {
       height: 100%;
       margin: 0;
@@ -23,14 +21,12 @@
       text-size-adjust: 100%;
     }
     .pixelated { image-rendering: pixelated; }
-
     @keyframes dive {
       0%   { transform: translateY(0);     opacity: 1; }
       90%  { transform: translateY(115vh); opacity: 1; }
       100% { transform: translateY(150vh); opacity: 0; }
     }
     .dive { animation: dive 1.4s cubic-bezier(.42,0,.58,1) forwards; }
-
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -64,14 +60,13 @@
        class="hidden fixed inset-0 flex flex-col items-center justify-center gap-6
               w-full h-full p-4">
 
-    <!-- Inputs Row -->
+    <!-- inputs & button -->
     <div class="flex flex-col sm:flex-row gap-2 w-full max-w-lg">
       <input id="addrInput"
              type="text"
              placeholder="wallet address"
              class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
                     placeholder-gray-500 pixelated outline-none" />
-
       <select id="chainSelect"
               title="Choose blockchain network"
               aria-label="Choose blockchain network"
@@ -79,7 +74,6 @@
         <option value="base">Base</option>
         <option value="sol">Solana</option>
       </select>
-
       <input id="nickInput"
              type="text"
              placeholder="nickname"
@@ -87,18 +81,15 @@
                     placeholder-gray-500 pixelated outline-none" />
     </div>
 
-    <!-- Harpoon Button -->
-    <button id="harpoonBtn"
-            disabled
+    <button id="harpoonBtn" disabled
             class="w-full max-w-lg py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
                    rounded pixelated text-xs sm:text-sm tracking-widest
                    disabled:opacity-40 disabled:cursor-not-allowed">
       HARPOON&nbsp;WHALE
     </button>
 
-    <!-- Tracking Panel (always visible) -->
-    <div id="trackingPanel"
-         class="w-full max-w-lg bg-gray-800 rounded-lg p-3">
+    <!-- always-visible tracking panel -->
+    <div id="trackingPanel" class="w-full max-w-lg bg-gray-800 rounded-lg p-3">
       <h3 class="text-sm sm:text-base font-semibold mb-2">
         🗺️ Tracking (<span id="trackCount">0</span>)
       </h3>
@@ -107,7 +98,7 @@
     </div>
   </div>
 
-  <!-- TRANSACTION MODAL -->
+  <!-- TX MODAL -->
   <div id="txModal"
        class="hidden fixed inset-0 bg-black/70 flex items-center justify-center">
     <div class="bg-gray-900 w-80 sm:w-96 rounded-lg p-4 space-y-3">
@@ -122,9 +113,8 @@
     </div>
   </div>
 
-  <!-- APPLICATION SCRIPT -->
   <script>
-    // 1. Firebase Initialization
+    // 1. Firebase init
     const firebaseConfig = {
       apiKey: "AIzaSyBYXcFuIasNsyef8d3uxOz51o4qg4O66wg",
       authDomain: "whaley-69708.firebaseapp.com",
@@ -137,11 +127,11 @@
     firebase.initializeApp(firebaseConfig);
     const walletsRef = firebase.database().ref("wallets");
 
-    // 2. Configuration & Icons
+    // 2. Config & icons
     const BASE_KEY = "ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";
     const ENDPOINT = {
-      base: addr =>
-        `https://api.basescan.org/api?module=account&action=txlist` +
+      base: addr => 
+        `https://api.basescan.org/api?module=account&action=txlist`+
         `&address=${addr}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
     };
     const ICON = {
@@ -151,7 +141,7 @@
         '<img src="sol-logo.png" alt="Solana" class="w-4 h-4 inline-block align-text-bottom"/>'
     };
 
-    // 3. Element References
+    // 3. Elements
     const $ = id => document.getElementById(id);
     const diveStage    = $("diveStage"),
           harpoonStage = $("harpoonStage"),
@@ -169,7 +159,7 @@
           txUl         = $("txList");
     $("closeModal").onclick = () => modal.classList.add("hidden");
 
-    // 4. Live Wallet List Rendering
+    // 4. Render function (with debug log)
     function cardHTML(o) {
       return `
         <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
@@ -183,6 +173,7 @@
     function render(snapshot) {
       const data = [];
       snapshot.forEach(s => data.push(s.val()));
+      console.log("🔄 render data:", data);
       cardGrid.innerHTML = data.map(cardHTML).join("");
       data.forEach((_, i) => {
         cardGrid.children[i].onclick = () => openModal(data[i].a, data[i].c);
@@ -191,9 +182,9 @@
     }
     walletsRef.on("value", render);
 
-    // 5. Deep-Dive Animation
+    // 5. Deep-dive animation
     diveBtn.onclick = () => {
-      [logo, tag, diveBtn].forEach(el => el.classList.add("dive"));
+      [logo, tag, diveBtn].forEach(e => e.classList.add("dive"));
       diveBtn.disabled = true;
     };
     logo.addEventListener("animationend", () => {
@@ -203,7 +194,7 @@
       addrInput.focus();
     });
 
-    // 6. Input Validation
+    // 6. Validation
     const ok = v =>
       /^0x[a-f0-9]{40}$/i.test(v) ||
       (v.length >= 32 && v.length <= 44);
@@ -216,67 +207,59 @@
     nickInput.oninput = validate;
     chainSel.addEventListener("change", validate);
 
-    // 7. Harpoon (Save to Firebase)
+    // 7. Harpoon (save + immediate render)
     harpoonBtn.onclick = () => {
-      console.log(
-        "🔫 Harpoon clicked:",
-        addrInput.value,
-        nickInput.value,
-        chainSel.value
-      );
+      console.log("🔫 Harpoon clicked:", addrInput.value, nickInput.value, chainSel.value);
       const a = addrInput.value.trim(),
             n = nickInput.value.trim(),
             c = chainSel.value;
       if (!ok(a) || !n) return;
+
       walletsRef.push({a,c,n})
-        .then(ref => console.log("✅ Saved under key", ref.key))
+        .then(ref => {
+          console.log("✅ Saved under key", ref.key);
+          // fetch fresh snapshot & render right away
+          return walletsRef.once("value");
+        })
+        .then(render)
         .catch(err => {
           alert("Error saving whale: " + err.message);
           console.error(err);
         });
+
       addrInput.value = "";
       nickInput.value = "";
       harpoonBtn.disabled = true;
     };
 
-    // 8. Transaction Fetch Helpers
-    const fetchBase = u =>
-      fetch(u)
-        .then(r => r.json())
-        .then(j => (j.status === "1" ? j.result : []));
+    // 8. Fetch helpers
+    const fetchBase = u => fetch(u).then(r => r.json()).then(j => j.status==="1" ? j.result : []);
     async function fetchSol(addr) {
       try {
         const body = JSON.stringify({
-          jsonrpc: "2.0", id:1,
+          jsonrpc: "2.0",
+          id: 1,
           method: "getSignaturesForAddress",
           params: [addr, {limit:10}]
         });
-        const j = await fetch(
-          "https://api.mainnet-beta.solana.com",
-          {
-            method: "POST",
-            headers: {"Content-Type":"application/json"},
-            body
-          }
-        ).then(r => r.json());
+        const j = await fetch("https://api.mainnet-beta.solana.com", {
+          method: "POST",
+          headers: {'Content-Type':'application/json'},
+          body
+        }).then(r=>r.json());
         return Array.isArray(j.result)
-          ? j.result.map(o => ({
-              hash: o.signature,
-              timeStamp: o.blockTime,
-              dir: "SOL",
-              value: 0
-            }))
+          ? j.result.map(o=>({hash:o.signature, timeStamp:o.blockTime, dir:"SOL", value:0}))
           : [];
       } catch {
         return [];
       }
     }
     const getTx = (a,c) =>
-      c === "base"
+      c==="base"
         ? fetchBase(ENDPOINT.base(a))
         : fetchSol(a);
 
-    // 9. Modal Viewer
+    // 9. Modal viewer
     function openModal(addr,chain) {
       spinner.classList.remove("hidden");
       txUl.classList.add("hidden");
@@ -299,7 +282,7 @@
             ? `https://basescan.org/tx/${t.hash}`
             : `https://solscan.io/tx/${t.hash}`;
           const amt = chain==="base"
-            ? (+t.value/1e18).toFixed(4)+" ETH"
+            ? (+t.value/1e18).toFixed(4) + " ETH"
             : "— SOL";
           const li = document.createElement("li");
           li.className = "p-2 rounded bg-gray-800";
