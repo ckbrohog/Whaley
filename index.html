@@ -10,11 +10,10 @@
   <style>
     .pixelated{image-rendering:pixelated}
 
-    /* shared dive animation */
     @keyframes dive{
-      0%   {transform:translateY(0);      opacity:1}
-      90%  {transform:translateY(120vh); opacity:1}
-      100% {transform:translateY(150vh); opacity:0}
+      0%{transform:translateY(0);opacity:1}
+      90%{transform:translateY(120vh);opacity:1}
+      100%{transform:translateY(150vh);opacity:0}
     }
     .dive{animation:dive 1.8s cubic-bezier(.42,0,.58,1) forwards}
 
@@ -27,16 +26,10 @@
 <body class="bg-gray-900 text-gray-100 flex flex-col items-center
              justify-center min-h-screen space-y-6">
 
-  <!-- logo -->
+  <!-- logo + tagline + deep-dive -->
   <img id="logo" src="whaley_middle.png"
        class="w-64 md:w-72 pixelated select-none" alt="Whaley logo" />
-
-  <!-- tagline -->
-  <p id="tagline" class="text-gray-400 text-sm">
-    Your future crypto-whale dashboard
-  </p>
-
-  <!-- deep-dive trigger -->
+  <p id="tagline" class="text-gray-400 text-sm">Your future crypto-whale dashboard</p>
   <button id="diveBtn"
           class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700
                  rounded pixelated text-sm tracking-widest">
@@ -45,53 +38,75 @@
 
   <!-- post-dive UI -->
   <div id="postDive" class="hidden flex flex-col items-center space-y-4">
-    <button id="harpoonBtn"
-            class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
-                   rounded pixelated text-sm tracking-widest">
+
+    <!-- address input + harpoon -->
+    <input id="addrInput" type="text" spellcheck="false" autocomplete="off"
+           placeholder="paste whale address…"
+           class="w-64 md:w-80 px-3 py-2 rounded bg-gray-800 text-sm
+                  placeholder-gray-500 pixelated outline-none"/>
+
+    <button id="harpoonBtn" disabled
+            class="px-6 py-2 bg-indigo-600 rounded pixelated text-sm tracking-widest
+                   disabled:opacity-40 disabled:cursor-not-allowed
+                   hover:bg-indigo-500 active:bg-indigo-700">
       HARPOON&nbsp;WHALE
     </button>
 
+    <!-- tracking list -->
     <details id="trackingBox"
              class="w-64 md:w-80 bg-gray-800 rounded-lg p-4">
       <summary class="cursor-pointer outline-none select-none">
         🗺️ Tracking (<span id="trackCount">0</span>)
       </summary>
-      <ul id="trackList" class="text-xs mt-2 space-y-1"></ul>
+      <ul id="trackList" class="text-xs mt-2 space-y-1 break-all"></ul>
     </details>
   </div>
 
 <script>
+  /* elements */
   const logo   = document.getElementById('logo');
   const tag    = document.getElementById('tagline');
   const diveBtn= document.getElementById('diveBtn');
   const post   = document.getElementById('postDive');
 
-  /* 1 — Trigger dive on click */
+  const input  = document.getElementById('addrInput');
+  const harp   = document.getElementById('harpoonBtn');
+  const list   = document.getElementById('trackList');
+  const cntLbl = document.getElementById('trackCount');
+  const tracked = [];
+
+  /* === 1. deep-dive === */
   diveBtn.onclick = () =>{
     [logo, tag, diveBtn].forEach(el => el.classList.add('dive'));
     diveBtn.disabled = true;
     diveBtn.classList.add('cursor-default','opacity-50');
   };
-
-  /* 2 — When logo animation ends, reveal post-dive UI */
   logo.addEventListener('animationend', () =>{
     post.classList.remove('hidden');
     post.classList.add('fadeUp');
+    input.focus();
   });
 
-  /* Harpoon tracker (unchanged) */
-  const harpoonBtn = document.getElementById('harpoonBtn');
-  const trackList  = document.getElementById('trackList');
-  const trackCnt   = document.getElementById('trackCount');
-  const tracked    = [];
+  /* === 2. enable/disable harpoon === */
+  const addrOk = v => /^0x[a-fA-F0-9]{40}$/.test(v.trim()) || (v.trim().length>=32 && v.trim().length<=44);
+  input.addEventListener('input', () => {
+    harp.disabled = !addrOk(input.value);
+  });
 
-  harpoonBtn.onclick = () =>{
-    const id = `Whale #${tracked.length+1}`;
-    tracked.push(id);
+  /* === 3. harpoon action === */
+  harp.onclick = () =>{
+    const addr = input.value.trim();
+    if(!addrOk(addr)) return;
+    tracked.push(addr);
+
     const li = document.createElement('li');
-    li.textContent = id;
-    trackList.appendChild(li);
-    trackCnt.textContent = tracked.length;
+    li.textContent = addr;
+    list.appendChild(li);
+    cntLbl.textContent = tracked.length;
+
+    input.value = '';
+    harp.disabled = true;
+    input.focus();
   };
 </script>
 </body>
