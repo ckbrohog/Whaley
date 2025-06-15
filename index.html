@@ -8,32 +8,29 @@
 
   <link rel="icon" type="image/png" href="whaley_middle.png" />
   <style>
-    /* enforce no page scroll */
-    html,body { height: 100%; margin: 0; overflow: hidden; }
-    .pixelated { image-rendering: pixelated; }
+    html,body { height:100%; margin:0; overflow:hidden }          /* hard-lock pagescroll */
+    .pixelated{ image-rendering:pixelated }
 
-    @keyframes dive {
-      0%   { transform: translateY(0);    opacity: 1; }
-      90%  { transform: translateY(120vh);opacity: 1; }
-      100% { transform: translateY(150vh);opacity: 0; }
-    }
-    .dive { animation: dive 1.6s cubic-bezier(.42,0,.58,1) forwards; }
+    @keyframes dive{ 0%{transform:translateY(0);opacity:1}
+                     90%{transform:translateY(115vh);opacity:1}
+                    100%{transform:translateY(150vh);opacity:0}}
+    .dive{ animation:dive 1.4s cubic-bezier(.42,0,.58,1) forwards }
 
-    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); }
-                        to   { opacity:1; transform:translateY(0); } }
-    .fadeUp { animation: fadeUp .35s ease-out forwards; }
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}
+                      to  {opacity:1;transform:translateY(0)}}
+    .fadeUp{ animation:fadeUp .3s ease-out forwards }
   </style>
 </head>
 
-<body class="bg-gray-900 text-gray-100 font-sans">
+<body class="bg-gray-900 text-gray-100 font-sans flex justify-center items-center">
 
-<div class="flex flex-col justify-center items-center h-screen
-            space-y-4 sm:space-y-6 px-4">
+<!-- single viewport panel -->
+<div class="w-full h-full flex items-center justify-center">
 
-  <!-- dive zone -->
-  <div id="diveArea" class="flex flex-col items-center space-y-3 sm:space-y-4">
-    <img id="logo" src="whaley_middle.png"
-         class="w-52 sm:w-64 pixelated select-none" alt="Whaley logo" />
+  <!-- ===  A  DIVE   STAGE  === -->
+  <div id="diveStage" class="flex flex-col items-center gap-4">
+    <img id="logo" src="whaley_middle.png" alt="Whaley logo"
+         class="w-44 sm:w-56 pixelated select-none" />
 
     <p id="tagline" class="text-gray-400 text-xs sm:text-sm text-center">
       Your future crypto-whale dashboard
@@ -46,14 +43,14 @@
     </button>
   </div>
 
-  <!-- post-dive -->
-  <div id="postDive" class="hidden w-full max-w-xs sm:max-w-md
-                           flex flex-col items-center space-y-4">
+  <!-- ===  B  HARPOON   STAGE  (starts hidden) === -->
+  <div id="harpoonStage"
+       class="hidden flex flex-col items-center gap-4 w-72 sm:w-96">
 
     <input id="addrInput" type="text" autocomplete="off" spellcheck="false"
            placeholder="paste whale address…"
            class="w-full px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
-                  placeholder-gray-500 pixelated outline-none" />
+                  placeholder-gray-500 pixelated outline-none"/>
 
     <button id="harpoonBtn" disabled
             class="w-full py-2 bg-indigo-600 rounded pixelated text-xs sm:text-sm
@@ -62,64 +59,63 @@
       HARPOON&nbsp;WHALE
     </button>
 
-    <details id="trackingBox"
-             class="w-full bg-gray-800 rounded-lg p-4">
+    <details class="w-full bg-gray-800 rounded-lg p-3">
       <summary class="cursor-pointer outline-none select-none">
         🗺️ Tracking (<span id="trackCount">0</span>)
       </summary>
-
-      <!-- own scroll area, so page height never grows -->
+      <!-- internal scroll so outer page never grows -->
       <ul id="trackList"
-          class="text-xs mt-2 space-y-1 break-all max-h-40 overflow-y-auto"></ul>
+          class="text-xs mt-2 space-y-1 break-all max-h-32 overflow-y-auto"></ul>
     </details>
   </div>
 </div>
 
 <script>
-  /* grab elements */
-  const logo   = document.getElementById('logo');
-  const tag    = document.getElementById('tagline');
-  const diveBtn= document.getElementById('diveBtn');
-  const post   = document.getElementById('postDive');
+/* elements */
+const diveStage  = document.getElementById('diveStage');
+const harpoonStage = document.getElementById('harpoonStage');
+const logo   = document.getElementById('logo');
+const tag    = document.getElementById('tagline');
+const diveBtn= document.getElementById('diveBtn');
+const input  = document.getElementById('addrInput');
+const harp   = document.getElementById('harpoonBtn');
+const list   = document.getElementById('trackList');
+const cntLbl = document.getElementById('trackCount');
 
-  const input  = document.getElementById('addrInput');
-  const harp   = document.getElementById('harpoonBtn');
-  const list   = document.getElementById('trackList');
-  const cntLbl = document.getElementById('trackCount');
+/* load saved whales */
+const tracked = JSON.parse(localStorage.getItem('trackedWhales')||'[]');
+const save  =()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
+const render=()=>{
+  list.innerHTML='';
+  tracked.forEach(a=>{const li=document.createElement('li');li.textContent=a;list.appendChild(li)});
+  cntLbl.textContent=tracked.length;
+};
+render();
 
-  /* persistent list */
-  const tracked = JSON.parse(localStorage.getItem('trackedWhales') || '[]');
-  const save    = () => localStorage.setItem('trackedWhales', JSON.stringify(tracked));
-  const render  = () => {
-    list.innerHTML='';
-    tracked.forEach(a=>{
-      const li=document.createElement('li');li.textContent=a;list.appendChild(li);
-    });
-    cntLbl.textContent = tracked.length;
-  };
-  render();
+/* deep-dive */
+diveBtn.onclick=()=>{
+  [logo,tag,diveBtn].forEach(el=>el.classList.add('dive'));
+  diveBtn.disabled=true;
+};
+/* when animation ends, swap stages */
+logo.addEventListener('animationend',()=>{
+  diveStage.classList.add('hidden');
+  harpoonStage.classList.remove('hidden');
+  harpoonStage.classList.add('fadeUp');
+  input.focus();
+});
 
-  /* dive */
-  diveBtn.onclick = () =>{
-    [logo,tag,diveBtn].forEach(el=>el.classList.add('dive'));
-    diveBtn.disabled = true;
-  };
-  logo.addEventListener('animationend', ()=>{
-    post.classList.remove('hidden'); post.classList.add('fadeUp');
-    input.focus();
-  });
+/* validate input */
+const ok=v=>/^0x[a-f0-9]{40}$/i.test(v.trim())||(v.trim().length>=32&&v.trim().length<=44);
+input.oninput =()=> harp.disabled=!ok(input.value);
 
-  /* validation */
-  const ok = v=>/^0x[a-f0-9]{40}$/i.test(v.trim())||(v.trim().length>=32&&v.trim().length<=44);
-  input.oninput = ()=> harp.disabled = !ok(input.value);
-
-  /* harpoon */
-  harp.onclick = () =>{
-    const a=input.value.trim();
-    if(!ok(a))return;
-    tracked.push(a); save(); render();
-    input.value=''; harp.disabled = true; input.focus();
-  };
+/* harpoon click */
+harp.onclick=()=>{
+  const a=input.value.trim();
+  if(!ok(a))return;
+  tracked.push(a); save(); render();
+  input.value=''; harp.disabled=true; input.focus();
+};
 </script>
 </body>
 </html>
