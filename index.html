@@ -89,10 +89,10 @@
 
 <script>
 /* -------- CONFIG -------- */
-const BASE_KEY='ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';
+const BASE_KEY='ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';        // BaseScan
 const ENDPOINT={
   base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`,
-  sol :a=>`https://cors.isomorphic-git.org/https://api.solscan.io/v2/account/transactions?address=${a}&limit=10`
+  sol :a=>`https://corsproxy.io/?https://api.solscan.io/v2/account/transactions?address=${encodeURIComponent(a)}&limit=10`
 };
 
 /* -------- elements -------- */
@@ -101,14 +101,12 @@ const harpoonStage=document.getElementById('harpoonStage');
 const logo=document.getElementById('logo');
 const tag=document.getElementById('tagline');
 const diveBtn=document.getElementById('diveBtn');
-
 const addrInput=document.getElementById('addrInput');
 const chainSel=document.getElementById('chainSelect');
 const nickInput=document.getElementById('nickInput');
 const harpoonBtn=document.getElementById('harpoonBtn');
 const cardGrid=document.getElementById('cardGrid');
 const cnt=document.getElementById('trackCount');
-
 const modal=document.getElementById('txModal');
 const spinner=document.getElementById('modalSpinner');
 const txUl=document.getElementById('txList');
