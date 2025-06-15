@@ -90,102 +90,118 @@
 </div>
 
 <script>
-/* ---------- Firebase init (fill in your keys) ---------- */
+/* Firebase init (keep your filled-in values) */
 const firebaseConfig = {
-  apiKey: "AIzaSyBYXcFuIasNsyef8d3uxOz51o4qg4O66wg",
+  apiKey: "AIzaSy…",
   authDomain: "whaley-69708.firebaseapp.com",
   databaseURL: "https://whaley-69708-default-rtdb.firebaseio.com",
   projectId: "whaley-69708",
-  storageBucket: "whaley-69708.firebasestorage.app",
+  storageBucket: "whaley-69708.appspot.com",
   messagingSenderId: "534890742846",
   appId: "1:534890742846:web:bd3f6eff12c8eae4733d6f"
 };
 firebase.initializeApp(firebaseConfig);
 const walletsRef = firebase.database().ref("wallets");
 
-/* ---------- CONFIG ---------- */
+/* Config & icons */
 const BASE_KEY='ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';
-const ENDPOINT={
-  base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
-};
-const ICON={
-  base:'<img src="base-logo.png" alt="Base"   class="w-4 h-4 inline-block align-text-bottom"/>',
-  sol :'<img src="sol-logo.png"  alt="Solana" class="w-4 h-4 inline-block align-text-bottom"/>'
-};
+const ENDPOINT={ base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}` };
+const ICON={ base:'<img src="base-logo.png" alt="Base" class="w-4 h-4 inline-block"/>',
+             sol :' <img src="sol-logo.png"   alt="Solana" class="w-4 h-4 inline-block"/>' };
 
-/* ---------- elements ---------- */
+/* Elements */
 const $=id=>document.getElementById(id);
-const diveStage=$('diveStage'),harpoonStage=$('harpoonStage'),logo=$('logo'),tag=$('tagline');
-const diveBtn=$('diveBtn'),addrInput=$('addrInput'),chainSel=$('chainSelect'),nickInput=$('nickInput');
-const harpoonBtn=$('harpoonBtn'),cardGrid=$('cardGrid'),cnt=$('trackCount');
-const modal=$('txModal'),spinner=$('modalSpinner'),txUl=$('txList');
-$('closeModal').onclick=()=>modal.classList.add('hidden');
+const diveStage=$('diveStage'), harpoonStage=$('harpoonStage');
+const logo=$('logo'), tag=$('tagline'), diveBtn=$('diveBtn');
+const addrInput=$('addrInput'), chainSel=$('chainSelect'), nickInput=$('nickInput');
+const harpoonBtn=$('harpoonBtn'), cardGrid=$('cardGrid'), cnt=$('trackCount');
+const modal=$('txModal'), spinner=$('modalSpinner'), txUl=$('txList');
+$('closeModal').onclick = ()=> modal.classList.add('hidden');
 
-/* ---------- render ---------- */
+/* Render live list from Firebase */
 function cardHTML(o){
   return `
     <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
       <div class="flex items-center justify-between mb-1">
-        <span class="font-semibold text-emerald-400">${o.n||' '}</span>
+        <span class="font-semibold text-emerald-400">${o.n||''}</span>
         ${ICON[o.c]}
       </div>
       <div class="text-[10px] break-all">${o.a.slice(0,6)}…${o.a.slice(-4)}</div>
     </div>`;}
-function render(snapshot){
-  const data=[];
-  snapshot.forEach(s=>data.push({...s.val(),key:s.key}));
-  cardGrid.innerHTML=data.map(cardHTML).join('');
-  [...cardGrid.children].forEach((el,i)=>el.onclick=()=>openModal(data[i].a,data[i].c));
-  cnt.textContent=data.length;
-}
-walletsRef.on("value",render);   // live list
 
-/* ---------- dive ---------- */
-diveBtn.onclick=()=>{[logo,tag,diveBtn].forEach(e=>e.classList.add('dive'));diveBtn.disabled=true;};
-logo.addEventListener('animationend',()=>{
+function render(snapshot){
+  const data=[]; snapshot.forEach(s=>data.push(s.val()));
+  cardGrid.innerHTML = data.map(cardHTML).join('');
+  [...cardGrid.children].forEach((el,i)=> el.onclick = ()=> openModal(data[i].a, data[i].c));
+  cnt.textContent = data.length;
+}
+walletsRef.on("value", render);
+
+/* Deep-dive animation */
+diveBtn.onclick = ()=> {
+  [logo,tag,diveBtn].forEach(e=>e.classList.add('dive'));
+  diveBtn.disabled = true;
+};
+logo.addEventListener('animationend', ()=>{
   diveStage.classList.add('hidden');
-  harpoonStage.classList.remove('hidden');harpoonStage.classList.add('fadeUp');
+  harpoonStage.classList.remove('hidden'); harpoonStage.classList.add('fadeUp');
   addrInput.focus();
 });
 
-/* ---------- validation ---------- */
-const ok=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
-const validate=()=>harpoonBtn.disabled=!ok(addrInput.value.trim())||!nickInput.value.trim();
-addrInput.oninput=validate;nickInput.oninput=validate;chainSel.onchange=validate;
+/* Validation */
+const ok = v=> /^0x[a-f0-9]{40}$/i.test(v) || (v.length>=32&&v.length<=44);
+const validate = ()=> {
+  harpoonBtn.disabled = !ok(addrInput.value.trim()) || !nickInput.value.trim();
+};
+addrInput.oninput  = validate;
+nickInput.oninput  = validate;
+chainSel.onchange  = validate;    /* ← now correctly listens for select changes */
 
-/* ---------- harpoon ---------- */
-harpoonBtn.onclick=()=>{
-  const a=addrInput.value.trim(), n=nickInput.value.trim(), c=chainSel.value;
-  if(!ok(a)||!n)return;
-  walletsRef.push({a,c,n});                // save to Firebase
-  addrInput.value=''; nickInput.value=''; harpoonBtn.disabled=true;
+/* Harpoon (save to Firebase) */
+harpoonBtn.onclick = ()=>{
+  const a = addrInput.value.trim(), n = nickInput.value.trim(), c = chainSel.value;
+  if(!ok(a)||!n) return;
+  walletsRef.push({a,c,n});
+  addrInput.value=''; nickInput.value=''; harpoonBtn.disabled = true;
 };
 
-/* ---------- fetch helpers ---------- */
-const fetchBase=u=>fetch(u).then(r=>r.json()).then(j=>j.status==='1'?j.result:[]);
+/* Fetch helpers */
+const fetchBase = u=> fetch(u).then(r=>r.json()).then(j=> j.status==='1'? j.result : []);
 async function fetchSol(addr){
   try{
-    const body=JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[addr,{limit:10}]});
-    const j=await fetch("https://api.mainnet-beta.solana.com",{method:"POST",headers:{'Content-Type':'application/json'},body}).then(r=>r.json());
-    if(Array.isArray(j.result)) return j.result.map(o=>({hash:o.signature,timeStamp:o.blockTime,dir:'SOL',value:0}));}
-  catch{}
-  return [];
+    const body = JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[addr,{limit:10}]});
+    const j = await fetch("https://api.mainnet-beta.solana.com", {
+      method:"POST", headers:{'Content-Type':'application/json'}, body
+    }).then(r=>r.json());
+    return Array.isArray(j.result)
+      ? j.result.map(o=>({hash:o.signature,timeStamp:o.blockTime,dir:'SOL',value:0}))
+      : [];
+  }catch{ return []; }
 }
-const getTx=(a,c)=>c==='base'?fetchBase(ENDPOINT.base(a)):fetchSol(a);
+const getTx = (a,c)=> c==='base'? fetchBase(ENDPOINT.base(a)) : fetchSol(a);
 
-/* ---------- modal ---------- */
+/* Modal */
 function openModal(addr,chain){
   spinner.classList.remove('hidden'); txUl.classList.add('hidden'); txUl.innerHTML='';
   modal.classList.remove('hidden'); modal.classList.add('flex');
   getTx(addr,chain).then(arr=>{
     spinner.classList.add('hidden'); txUl.classList.remove('hidden');
-    if(!arr.length){txUl.innerHTML='<li class="text-center text-gray-500">No tx found</li>';return;}
+    if(!arr.length){
+      txUl.innerHTML = '<li class="text-center text-gray-500">No tx found</li>'; return;
+    }
     arr.forEach(t=>{
-      const dir=chain==='base'?(t.to?.toLowerCase()===addr.toLowerCase()?'IN':'OUT'):'SIG';
-      const link=chain==='base'?`https://basescan.org/tx/${t.hash}`:`https://solscan.io/tx/${t.hash}`;
-      const amt=chain==='base'?(+t.value/1e18).toFixed(4)+' ETH':'— SOL';
-      const li=document.createElement('li');li.className='p-2 rounded bg-gray-800';
-      li.innerHTML=`
+      const dir = chain==='base'
+        ? (t.to?.toLowerCase()===addr.toLowerCase()?'IN':'OUT')
+        : 'SIG';
+      const link = chain==='base'
+        ? `https://basescan.org/tx/${t.hash}`
+        : `https://solscan.io/tx/${t.hash}`;
+      const amt = chain==='base'
+        ? (+t.value/1e18).toFixed(4)+' ETH'
+        : '— SOL';
+      const li = document.createElement('li');
+      li.className = 'p-2 rounded bg-gray-800';
+      li.innerHTML = `
         <div class="flex justify-between">
           <span class="${dir==='IN'?'text-green-400':dir==='OUT'?'text-red-400':'text-cyan-400'}">${dir}</span>
           <span>${amt}</span>
