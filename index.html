@@ -3,16 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <title>Whaley – Crypto-Whale Dashboard</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <!-- Tailwind (quick CDN) -->
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- Notyf toast -->
+  <!-- Notyf -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
   <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
 
@@ -28,26 +26,31 @@
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans">
 
-<!-- ───────── Splash ───────── -->
+<!-- ───── Splash ───── -->
 <div id="diveStage" class="fixed inset-0 flex flex-col items-center justify-center gap-4">
   <img id="logo" src="whaley_middle.png" class="w-52 sm:w-64 pixelated select-none" alt="Whaley logo">
   <p id="tagline" class="text-gray-400 text-xs sm:text-sm text-center">Your future crypto-whale dashboard</p>
   <button id="diveBtn" class="px-5 py-2 rounded pixelated text-xs sm:text-sm tracking-widest bg-amber-600 hover:bg-amber-500 active:bg-amber-700">DEEP&nbsp;DIVE</button>
 </div>
 
-<!-- ───────── Main UI ───────── -->
+<!-- ───── Main UI ───── -->
 <div id="harpoonStage" class="hidden fixed inset-0 flex flex-col lg:flex-row items-start gap-6 p-4">
 
   <!-- Recent TX -->
   <div class="w-full lg:w-1/3 bg-gray-800/60 backdrop-blur-sm rounded-lg p-4">
     <div class="flex items-center justify-between mb-2">
       <h3 class="text-base font-semibold">Recent Transactions</h3>
-      <button id="refreshBtn" title="Refresh now" class="text-gray-300 hover:text-white text-lg leading-none">↻</button>
+      <button id="refreshBtn" class="text-gray-300 hover:text-white text-lg leading-none" title="Refresh now">↻</button>
     </div>
     <div class="overflow-y-auto max-h-96">
       <table class="w-full text-xs sm:text-sm">
         <thead><tr class="text-left">
-          <th class="px-2 py-1">Time</th><th class="px-2 py-1">Wallet</th><th class="px-2 py-1">Token</th><th class="px-2 py-1">Amt</th><th class="px-2 py-1">Dir</th>
+          <th class="px-2 py-1">Date</th>
+          <th class="px-2 py-1">Time</th>
+          <th class="px-2 py-1">Wallet</th>
+          <th class="px-2 py-1">Token</th>
+          <th class="px-2 py-1">Amt</th>
+          <th class="px-2 py-1">Dir</th>
         </tr></thead>
         <tbody id="recentBody"></tbody>
       </table>
@@ -102,11 +105,12 @@ firebase.initializeApp({
 });
 const walletsRef=firebase.database().ref("wallets");
 
-/* ——— Settings ——— */
+/* ——— Settings / helpers ——— */
 const BASE_KEY="ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";
 const ENDPOINT={base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`};
 const ICON={base:'<img src="base-logo.png" class="w-4 h-4 inline-block" alt="base">',sol:'<img src="sol-logo.png" class="w-4 h-4 inline-block" alt="sol">'};
 const $=id=>document.getElementById(id);const notyf=new Notyf({duration:2400});
+const isAddr=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
 
 /* ——— UI refs ——— */
 const diveStage=$("diveStage"),harpoonStage=$("harpoonStage"),logo=$("logo"),diveBtn=$("diveBtn");
@@ -115,11 +119,8 @@ const cardGrid=$("cardGrid"),trackCount=$("trackCount");
 const recentBody=$("recentBody"),modal=$("txModal"),spinner=$("modalSpinner"),txList=$("txList");
 $("closeModal").onclick=()=>modal.classList.add("hidden");$("refreshBtn").onclick=refreshDash;
 
-/* ——— Helpers ——— */
-const isAddr=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
-
-/* ——— Splash action ——— */
-diveBtn.onclick=()=>{[logo,$("tagline"),diveBtn].forEach(e=>e.classList.add("dive"));diveBtn.disabled=true;};
+/* ——— Splash ——— */
+diveBtn.onclick=()=>{[logo,$("tagline"),diveBtn].forEach(el=>el.classList.add("dive"));diveBtn.disabled=true;};
 logo.addEventListener("animationend",()=>{diveStage.classList.add("hidden");harpoonStage.classList.remove("hidden");harpoonStage.classList.add("fadeUp");addrInput.focus();});
 
 /* ——— Validation ——— */
@@ -129,49 +130,38 @@ const validate=()=>harpoonBtn.disabled=!isAddr(addrInput.value.trim())||!nickInp
 /* ——— Local fallback ——— */
 let whales=JSON.parse(localStorage.getItem("whaleyLocal")||"[]");
 
-/* ——— Card template & binding ——— */
-const cardTpl=w=>`
+/* ——— Card helpers ——— */
+const tmpl=w=>`
   <div class="group w-36 p-2 bg-gray-800 rounded hover:bg-gray-700 relative">
     <button class="delete absolute -top-1.5 -right-1.5 hidden group-hover:flex text-xs bg-red-600 hover:bg-red-500 rounded-full w-5 h-5 items-center justify-center" title="Delete">✕</button>
-    <div class="flex justify-between mb-1">
-      <span class="text-emerald-400 font-semibold">${w.n}</span>${ICON[w.c]}
-    </div>
+    <div class="flex justify-between mb-1"><span class="text-emerald-400 font-semibold">${w.n}</span>${ICON[w.c]}</div>
     <div class="text-[10px] break-all">${w.a.slice(0,6)}…${w.a.slice(-4)}</div>
   </div>`;
-
-function bindCard(card,w){
+function bind(card,w){
   card.querySelector(".delete").onclick=e=>{
     e.stopPropagation();
     if(!confirm(`Delete ${w.n}?`))return;
     if(w.key?.startsWith("local-")){
-      const local=JSON.parse(localStorage.getItem("whaleyLocal")||"[]").filter(x=>x.key!==w.key);
-      localStorage.setItem("whaleyLocal",JSON.stringify(local));
+      const loc=JSON.parse(localStorage.getItem("whaleyLocal")||"[]").filter(x=>x.key!==w.key);
+      localStorage.setItem("whaleyLocal",JSON.stringify(loc));
     }else if(w.key){walletsRef.child(w.key).remove();}
-    whales=whales.filter(x=>x.key!==w.key&&x.a!==w.a);
-    card.remove();trackCount.textContent=whales.length;refreshDash();
+    whales=whales.filter(x=>x.key!==w.key&&x.a!==w.a);card.remove();trackCount.textContent=whales.length;refreshDash();
   };
   card.onclick=()=>openModal(w);
   card.oncontextmenu=e=>{e.preventDefault();navigator.clipboard.writeText(w.a);notyf.success("Address copied!");};
 }
 
-/* ——— Render local fallback first ——— */
-whales.forEach(w=>{
-  const d=document.createElement("div");d.innerHTML=cardTpl(w);
-  bindCard(d.firstElementChild,w);cardGrid.append(d.firstElementChild);
-});
-trackCount.textContent=whales.length;
+/* ——— Render local first ——— */
+whales.forEach(w=>{const d=document.createElement("div");d.innerHTML=tmpl(w);bind(d.firstElementChild,w);cardGrid.append(d.firstElementChild);});trackCount.textContent=whales.length;
 
 /* ——— Live Firebase stream ——— */
 walletsRef.on("child_added",snap=>{
   const w={...snap.val(),key:snap.key};
-  if(whales.some(x=>x.key===w.key||x.a===w.a)) return;          // skip dupes
-  /* if local copy exists (offline earlier) remove it */
+  if(whales.some(x=>x.key===w.key||x.a===w.a))return;
   whales=whales.filter(x=>x.a!==w.a);
-  const localArr=JSON.parse(localStorage.getItem("whaleyLocal")||"[]").filter(x=>x.a!==w.a);
-  localStorage.setItem("whaleyLocal",JSON.stringify(localArr));
+  const loc=JSON.parse(localStorage.getItem("whaleyLocal")||"[]").filter(x=>x.a!==w.a);localStorage.setItem("whaleyLocal",JSON.stringify(loc));
   whales.push(w);
-  const wrap=document.createElement("div");wrap.innerHTML=cardTpl(w);bindCard(wrap.firstElementChild,w);
-  cardGrid.prepend(wrap.firstElementChild);
+  const d=document.createElement("div");d.innerHTML=tmpl(w);bind(d.firstElementChild,w);cardGrid.prepend(d.firstElementChild);
   trackCount.textContent=whales.length;refreshDash();
 });
 
@@ -182,10 +172,8 @@ harpoonBtn.onclick=()=>{
   if(whales.some(x=>x.a===a)){notyf.error("Address already tracked");return;}
   walletsRef.push({a,c,n}).then(()=>notyf.success("Whale saved!")).catch(()=>{
     notyf.error("Cloud save failed – stored locally");
-    const w={a,c,n,key:"local-"+Date.now()};
-    whales.push(w);
-    const d=document.createElement("div");d.innerHTML=cardTpl(w);bindCard(d.firstElementChild,w);
-    cardGrid.prepend(d.firstElementChild);
+    const w={a,c,n,key:"local-"+Date.now()};whales.push(w);
+    const d=document.createElement("div");d.innerHTML=tmpl(w);bind(d.firstElementChild,w);cardGrid.prepend(d.firstElementChild);
     trackCount.textContent=whales.length;
     localStorage.setItem("whaleyLocal",JSON.stringify(whales.filter(x=>x.key.startsWith("local-"))));
   });
@@ -193,7 +181,7 @@ harpoonBtn.onclick=()=>{
 };
 
 /* ——— API adapters ——— */
-const baseTx=addr=>fetch(ENDPOINT.base(addr)).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);
+const baseTx=a=>fetch(ENDPOINT.base(a)).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);
 const solTx=a=>fetch("https://api.mainnet-beta.solana.com",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[a,{limit:10}]})}).then(r=>r.json()).then(j=>Array.isArray(j.result)?j.result.map(o=>({hash:o.signature,blockTime:o.blockTime,value:0})):[]);
 
 /* ——— Dashboard ——— */
@@ -205,7 +193,14 @@ async function refreshDash(){
     list.forEach(t=>rows.push({t:+(t.timeStamp||t.blockTime)*1000,w:w.n,tok:w.c==="base"?"ETH":"SOL",amt:w.c==="base"?(+t.value/1e18).toFixed(4):"--",dir:w.c==="base"?(t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT"):"SIG"}));
   }));
   rows.sort((a,b)=>b.t-a.t);
-  recentBody.innerHTML=rows.slice(0,10).map(r=>`<tr><td class="px-2 py-1">${new Date(r.t).toLocaleTimeString()}</td><td class="px-2 py-1">${r.w}</td><td class="px-2 py-1">${r.tok}</td><td class="px-2 py-1">${r.amt}</td><td class="px-2 py-1">${r.dir}</td></tr>`).join("");
+  recentBody.innerHTML=rows.slice(0,10).map(r=>`<tr>
+    <td class="px-2 py-1">${new Date(r.t).toLocaleDateString()}</td>
+    <td class="px-2 py-1">${new Date(r.t).toLocaleTimeString()}</td>
+    <td class="px-2 py-1">${r.w}</td>
+    <td class="px-2 py-1">${r.tok}</td>
+    <td class="px-2 py-1">${r.amt}</td>
+    <td class="px-2 py-1">${r.dir}</td>
+  </tr>`).join("");
 }
 setInterval(refreshDash,5000);
 
