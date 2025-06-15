@@ -5,6 +5,11 @@
   <title>Whaley</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
   <link rel="icon" type="image/png" href="whaley_middle.png" />
   <style>
     html,body{height:100%;margin:0}
@@ -21,11 +26,9 @@
 
 <body class="bg-gray-900 text-gray-100 font-sans">
 <div class="fixed inset-0 overflow-hidden flex items-center justify-center">
-
   <!-- DIVE STAGE -->
   <div id="diveStage" class="flex flex-col items-center gap-4">
-    <img id="logo" src="whaley_middle.png"
-         class="w-52 sm:w-64 pixelated select-none" alt="logo">
+    <img id="logo" src="whaley_middle.png" class="w-52 sm:w-64 pixelated select-none" alt="logo">
     <p id="tagline" class="text-gray-400 text-xs sm:text-sm text-center">
       Your future crypto-whale dashboard
     </p>
@@ -87,17 +90,30 @@
 </div>
 
 <script>
-/* -------- CONFIG -------- */
+/* ---------- Firebase init (fill in your keys) ---------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyBYXcFuIasNsyef8d3uxOz51o4qg4O66wg",
+  authDomain: "whaley-69708.firebaseapp.com",
+  databaseURL: "https://whaley-69708-default-rtdb.firebaseio.com",
+  projectId: "whaley-69708",
+  storageBucket: "whaley-69708.firebasestorage.app",
+  messagingSenderId: "534890742846",
+  appId: "1:534890742846:web:bd3f6eff12c8eae4733d6f"
+};
+firebase.initializeApp(firebaseConfig);
+const walletsRef = firebase.database().ref("wallets");
+
+/* ---------- CONFIG ---------- */
 const BASE_KEY='ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4';
 const ENDPOINT={
-  base:a=>https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}
+  base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
 };
 const ICON={
   base:'<img src="base-logo.png" alt="Base"   class="w-4 h-4 inline-block align-text-bottom"/>',
   sol :'<img src="sol-logo.png"  alt="Solana" class="w-4 h-4 inline-block align-text-bottom"/>'
 };
 
-/* -------- elements -------- */
+/* ---------- elements ---------- */
 const $=id=>document.getElementById(id);
 const diveStage=$('diveStage'),harpoonStage=$('harpoonStage'),logo=$('logo'),tag=$('tagline');
 const diveBtn=$('diveBtn'),addrInput=$('addrInput'),chainSel=$('chainSelect'),nickInput=$('nickInput');
@@ -105,91 +121,82 @@ const harpoonBtn=$('harpoonBtn'),cardGrid=$('cardGrid'),cnt=$('trackCount');
 const modal=$('txModal'),spinner=$('modalSpinner'),txUl=$('txList');
 $('closeModal').onclick=()=>modal.classList.add('hidden');
 
-/* -------- load & migrate -------- */
-let tracked=JSON.parse(localStorage.getItem('trackedWhales')||'[]')
-           .map(i=>typeof i==='string'?{a:i,c:'base',n:''}:i);
-const save=()=>localStorage.setItem('trackedWhales',JSON.stringify(tracked));
-
-/* -------- render cards -------- */
+/* ---------- render ---------- */
 function cardHTML(o){
-  return 
+  return `
     <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
       <div class="flex items-center justify-between mb-1">
         <span class="font-semibold text-emerald-400">${o.n||' '}</span>
         ${ICON[o.c]}
       </div>
       <div class="text-[10px] break-all">${o.a.slice(0,6)}…${o.a.slice(-4)}</div>
-    </div>;}
-function render(){
-  cardGrid.innerHTML=tracked.map(cardHTML).join('');
-  [...cardGrid.children].forEach((el,i)=>el.onclick=()=>openModal(tracked[i].a,tracked[i].c));
-  cnt.textContent=tracked.length;}
-render();
+    </div>`;}
+function render(snapshot){
+  const data=[];
+  snapshot.forEach(s=>data.push({...s.val(),key:s.key}));
+  cardGrid.innerHTML=data.map(cardHTML).join('');
+  [...cardGrid.children].forEach((el,i)=>el.onclick=()=>openModal(data[i].a,data[i].c));
+  cnt.textContent=data.length;
+}
+walletsRef.on("value",render);   // live list
 
-/* -------- dive -------- */
+/* ---------- dive ---------- */
 diveBtn.onclick=()=>{[logo,tag,diveBtn].forEach(e=>e.classList.add('dive'));diveBtn.disabled=true;};
-logo.addEventListener('animationend',()=>{diveStage.classList.add('hidden');harpoonStage.classList.remove('hidden');harpoonStage.classList.add('fadeUp');addrInput.focus();});
+logo.addEventListener('animationend',()=>{
+  diveStage.classList.add('hidden');
+  harpoonStage.classList.remove('hidden');harpoonStage.classList.add('fadeUp');
+  addrInput.focus();
+});
 
-/* -------- validation -------- */
+/* ---------- validation ---------- */
 const ok=v=>/^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
 const validate=()=>harpoonBtn.disabled=!ok(addrInput.value.trim())||!nickInput.value.trim();
 addrInput.oninput=validate;nickInput.oninput=validate;chainSel.onchange=validate;
 
-/* -------- harpoon -------- */
+/* ---------- harpoon ---------- */
 harpoonBtn.onclick=()=>{
-  const a=addrInput.value.trim(),n=nickInput.value.trim(),c=chainSel.value;
+  const a=addrInput.value.trim(), n=nickInput.value.trim(), c=chainSel.value;
   if(!ok(a)||!n)return;
-  tracked.push({a,c,n});save();render();
-  addrInput.value='';nickInput.value='';harpoonBtn.disabled=true;addrInput.focus();};
+  walletsRef.push({a,c,n});                // save to Firebase
+  addrInput.value=''; nickInput.value=''; harpoonBtn.disabled=true;
+};
 
-/* -------- fetch helpers -------- */
+/* ---------- fetch helpers ---------- */
 const fetchBase=u=>fetch(u).then(r=>r.json()).then(j=>j.status==='1'?j.result:[]);
-
 async function fetchSol(addr){
-  // 1) JSON-RPC attempt
   try{
     const body=JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[addr,{limit:10}]});
     const j=await fetch("https://api.mainnet-beta.solana.com",{method:"POST",headers:{'Content-Type':'application/json'},body}).then(r=>r.json());
-    if(Array.isArray(j.result)){
-      return j.result.map(o=>({hash:o.signature,timeStamp:o.blockTime,value:0,dir:'SOL'}));}}
-  catch{}
-
-  // 2) fallback Solscan via proxy
-  try{
-    const url=https://corsproxy.io/?https://public-api.solscan.io/account/transactions?account=${encodeURIComponent(addr)}&limit=10;
-    const arr=await fetch(url).then(r=>r.json());
-    if(Array.isArray(arr))
-      return arr.map(o=>({hash:o.signature,timeStamp:o.blockTime,value:(o.lamport||0)/1e9,dir:'SOL'}));}
+    if(Array.isArray(j.result)) return j.result.map(o=>({hash:o.signature,timeStamp:o.blockTime,dir:'SOL',value:0}));}
   catch{}
   return [];
 }
-
 const getTx=(a,c)=>c==='base'?fetchBase(ENDPOINT.base(a)):fetchSol(a);
 
-/* -------- modal -------- */
+/* ---------- modal ---------- */
 function openModal(addr,chain){
-  spinner.classList.remove('hidden');txUl.classList.add('hidden');txUl.innerHTML='';
-  modal.classList.remove('hidden');modal.classList.add('flex');
+  spinner.classList.remove('hidden'); txUl.classList.add('hidden'); txUl.innerHTML='';
+  modal.classList.remove('hidden'); modal.classList.add('flex');
   getTx(addr,chain).then(arr=>{
-    spinner.classList.add('hidden');txUl.classList.remove('hidden');
+    spinner.classList.add('hidden'); txUl.classList.remove('hidden');
     if(!arr.length){txUl.innerHTML='<li class="text-center text-gray-500">No tx found</li>';return;}
     arr.forEach(t=>{
-      const dir=chain==='base'?(t.to?.toLowerCase()===addr.toLowerCase()?'IN':'OUT'):t.dir;
-      const exp=chain==='base'?https://basescan.org/tx/${t.hash}:https://solscan.io/tx/${t.hash};
+      const dir=chain==='base'?(t.to?.toLowerCase()===addr.toLowerCase()?'IN':'OUT'):'SIG';
+      const link=chain==='base'?`https://basescan.org/tx/${t.hash}`:`https://solscan.io/tx/${t.hash}`;
       const amt=chain==='base'?(+t.value/1e18).toFixed(4)+' ETH':'— SOL';
       const li=document.createElement('li');li.className='p-2 rounded bg-gray-800';
-      li.innerHTML=
+      li.innerHTML=`
         <div class="flex justify-between">
           <span class="${dir==='IN'?'text-green-400':dir==='OUT'?'text-red-400':'text-cyan-400'}">${dir}</span>
           <span>${amt}</span>
         </div>
-        <a class="text-emerald-400 underline" target="_blank" href="${exp}">
+        <a href="${link}" target="_blank" class="text-emerald-400 underline">
           ${t.hash.slice(0,10)}…
         </a>
-        <div class="text-gray-500">${new Date((t.timeStamp||0)*1000).toLocaleString()}</div>;
+        <div class="text-gray-500">${new Date((t.timeStamp||0)*1000).toLocaleString()}</div>`;
       txUl.appendChild(li);
     });
-  }).catch(()=>spinner.textContent='error loading tx');
+  });
 }
 </script>
 </body>
