@@ -101,7 +101,7 @@
      class="hidden fixed inset-0 bg-black/70 flex items-center justify-center">
   <div class="bg-gray-900 w-80 sm:w-96 rounded-lg p-4">
     <div class="flex justify-between items-center mb-2">
-      <h2 class="text-base font-semibold">Last&nbsp;10&nbsp;Tx</h2>
+      <h2 class="text-base font-semibold">Last 10 Tx</h2>
       <button id="closeModal" class="text-gray-400 text-lg">&times;</button>
     </div>
     <div id="modalSpinner" class="flex justify-center py-6">
@@ -125,7 +125,7 @@ firebase.initializeApp({
 const walletsRef = firebase.database().ref("wallets");
 
 /* ——— Settings ——— */
-const BASE_KEY="ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";   /* <-- your key */
+const BASE_KEY="ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";
 const ENDPOINT={
   base:a=>`https://api.basescan.org/api?module=account&action=txlist&address=${a}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
 };
@@ -154,35 +154,68 @@ logo.addEventListener("animationend",()=>{diveStage.classList.add("hidden");harp
 const validate=()=>harpoonBtn.disabled=!isAddr(addrInput.value.trim())||!nickInput.value.trim();
 [addrInput,nickInput,chainSel].forEach(el=>el.oninput=validate);
 
-/* ——— Save wallet ——— */
-harpoonBtn.onclick=()=>{
-  const a=addrInput.value.trim(), n=nickInput.value.trim(), c=chainSel.value;
-  if(!isAddr(a)||!n) return;
-  walletsRef.push({a,c,n}).then(()=>notyf.success("Whale saved!")).catch(e=>notyf.error(e.message));
-  addrInput.value="";nickInput.value="";harpoonBtn.disabled=true;
-};
+/* ——— Fallback local storage loader ——— */
+let whales = JSON.parse(localStorage.getItem("whaleyLocal")||"[]");  // may be empty
 
-/* ——— Render list ——— */
-let whales=[];
-walletsRef.on("value",snap=>{
-  whales=[]; snap.forEach(s=>whales.push(s.val()));
+/* ——— Drawing helpers ——— */
+const drawCard=w=>`
+  <div class="w-36 p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer">
+    <div class="flex justify-between mb-1">
+      <span class="text-emerald-400 font-semibold">${w.n}</span>
+      ${ICON[w.c]}
+    </div>
+    <div class="text-[10px] break-all">${w.a.slice(0,6)}…${w.a.slice(-4)}</div>
+  </div>`;
+
+function appendCard(w){
+  const wrapper=document.createElement("div");
+  wrapper.innerHTML=drawCard(w);
+  const card=wrapper.firstElementChild;
+  card.onclick=()=>openModal(w);
+  card.oncontextmenu=e=>{e.preventDefault();navigator.clipboard.writeText(w.a);notyf.success("Address copied!");};
+  cardGrid.prepend(card);
   trackCount.textContent=whales.length;
-  cardGrid.innerHTML=whales.map(w=>`
-    <div class="w-36 p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer">
-      <div class="flex justify-between mb-1">
-        <span class="text-emerald-400 font-semibold">${w.n}</span>
-        ${ICON[w.c]}
-      </div>
-      <div class="text-[10px] break-all">${w.a.slice(0,6)}…${w.a.slice(-4)}</div>
-    </div>`).join("");
+}
+
+/* ——— Initial Firebase pull ——— */
+walletsRef.once("value",snap=>{
+  snap.forEach(s=>whales.push({...s.val(),key:s.key}));
+  cardGrid.innerHTML=whales.map(drawCard).join("");
   [...cardGrid.children].forEach((el,i)=>{
     el.onclick=()=>openModal(whales[i]);
     el.oncontextmenu=e=>{e.preventDefault();navigator.clipboard.writeText(whales[i].a);notyf.success("Address copied!");};
   });
+  trackCount.textContent=whales.length;
   refreshDash();
 });
 
-/* ——— Chain adapters ——— */
+/* ——— Stream real-time additions ——— */
+walletsRef.on("child_added",snap=>{
+  const w={...snap.val(),key:snap.key};
+  if(whales.some(x=>x.key===w.key)) return;   // skip if already rendered
+  whales.push(w);
+  appendCard(w);
+  refreshDash();
+});
+
+/* ——— Save wallet ——— */
+harpoonBtn.onclick=()=>{
+  const a=addrInput.value.trim().toLowerCase(), n=nickInput.value.trim(), c=chainSel.value;
+  if(!isAddr(a)||!n) return;
+  walletsRef.push({a,c,n})
+    .then(()=>notyf.success("Whale saved!"))
+    .catch(err=>{
+      notyf.error("Cloud save failed: stored locally");
+      const local=JSON.parse(localStorage.getItem("whaleyLocal")||"[]");
+      const w={a,c,n,key:"local-"+Date.now()};
+      local.push(w);
+      localStorage.setItem("whaleyLocal",JSON.stringify(local));
+      whales.push(w); appendCard(w);
+    });
+  addrInput.value="";nickInput.value="";harpoonBtn.disabled=true;
+};
+
+/* ——— API adapters ——— */
 const baseTx=addr=>fetch(ENDPOINT.base(addr)).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);
 const solTx=addr=>{
   const body={jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[addr,{limit:10}]};
@@ -192,17 +225,16 @@ const solTx=addr=>{
   );
 };
 
-/* ——— Dashboard ——— */
+/* ——— Dashboard refresh ——— */
 async function refreshDash(){
-  if(!whales.length) return(recentBody.innerHTML="");
+  if(!whales.length){recentBody.innerHTML="";return;}
   const rows=[];
   await Promise.all(whales.map(async w=>{
     const list=w.c==="base"?await baseTx(w.a):await solTx(w.a);
     list.forEach(t=>rows.push({
       t:+(t.timeStamp||t.blockTime)*1000,
       w:w.n, tok:w.c==="base"?"ETH":"SOL",
-      amt:w.c==="base"?(+t.value/1e18).toFixed(4):
-        "--",
+      amt:w.c==="base"?(+t.value/1e18).toFixed(4):"--",
       dir:w.c==="base"?(t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT"):"SIG"
     }));
   }));
