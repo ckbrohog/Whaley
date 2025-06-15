@@ -5,7 +5,7 @@
   <title>Whaley</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  <!-- Tailwind (dev CDN) -->
+  <!-- Tailwind CSS (dev CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Firebase SDKs -->
@@ -15,33 +15,22 @@
   <link rel="icon" type="image/png" href="whaley_middle.png" />
   <style>
     html, body {
-      height: 100%;
-      margin: 0;
-      -webkit-text-size-adjust: 100%;
-      text-size-adjust: 100%;
+      height: 100%; margin: 0;
+      -webkit-text-size-adjust:100%; text-size-adjust:100%;
     }
     .pixelated { image-rendering: pixelated; }
-    @keyframes dive {
-      0%   { transform: translateY(0);     opacity: 1; }
-      90%  { transform: translateY(115vh); opacity: 1; }
-      100% { transform: translateY(150vh); opacity: 0; }
-    }
-    .dive { animation: dive 1.4s cubic-bezier(.42,0,.58,1) forwards; }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .fadeUp { animation: fadeUp .3s ease-out forwards; }
+    @keyframes dive {0%{transform:translateY(0);opacity:1}90%{transform:translateY(115vh);opacity:1}100%{transform:translateY(150vh);opacity:0}}
+    .dive{animation:dive 1.4s cubic-bezier(.42,0,.58,1) forwards;}
+    @keyframes fadeUp {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .fadeUp{animation:fadeUp .3s ease-out forwards;}
   </style>
 </head>
-
 <body class="bg-gray-900 text-gray-100 font-sans">
 
   <!-- DIVE STAGE -->
   <div class="fixed inset-0 flex items-center justify-center overflow-hidden">
     <div id="diveStage" class="flex flex-col items-center gap-4">
-      <img id="logo"
-           src="whaley_middle.png"
+      <img id="logo" src="whaley_middle.png"
            alt="Whaley logo"
            class="w-52 sm:w-64 pixelated select-none" />
       <p id="tagline" class="text-gray-400 text-xs sm:text-sm text-center">
@@ -57,48 +46,64 @@
 
   <!-- HARPOON STAGE -->
   <div id="harpoonStage"
-       class="hidden fixed inset-0 flex flex-col items-center justify-center gap-6
+       class="hidden fixed inset-0 flex flex-col sm:flex-row items-start justify-center gap-6
               w-full h-full p-4">
 
-    <!-- inputs & button -->
-    <div class="flex flex-col sm:flex-row gap-2 w-full max-w-lg">
-      <input id="addrInput"
-             type="text"
-             placeholder="wallet address"
-             class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
-                    placeholder-gray-500 pixelated outline-none" />
-      <select id="chainSelect"
-              title="Choose blockchain network"
-              aria-label="Choose blockchain network"
-              class="px-2 py-2 rounded bg-gray-800 text-xs sm:text-sm outline-none">
-        <option value="base">Base</option>
-        <option value="sol">Solana</option>
-      </select>
-      <input id="nickInput"
-             type="text"
-             placeholder="nickname"
-             class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
-                    placeholder-gray-500 pixelated outline-none" />
+    <!-- Recent Transactions Panel -->
+    <div id="recentPanel" class="w-full sm:w-1/3 bg-gray-800 rounded-lg p-4">
+      <h3 class="text-sm sm:text-base font-semibold mb-2">Recent Transactions</h3>
+      <div class="overflow-y-auto max-h-96">
+        <table class="w-full text-xs sm:text-sm">
+          <thead>
+            <tr class="text-left">
+              <th class="px-2 py-1">Time</th>
+              <th class="px-2 py-1">Wallet</th>
+              <th class="px-2 py-1">Token</th>
+              <th class="px-2 py-1">Amount</th>
+              <th class="px-2 py-1">Dir</th>
+            </tr>
+          </thead>
+          <tbody id="recentBody"></tbody>
+        </table>
+      </div>
     </div>
 
-    <button id="harpoonBtn" disabled
-            class="w-full max-w-lg py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
-                   rounded pixelated text-xs sm:text-sm tracking-widest
-                   disabled:opacity-40 disabled:cursor-not-allowed">
-      HARPOON&nbsp;WHALE
-    </button>
+    <!-- Main Harpoon UI -->
+    <div class="w-full sm:w-2/3 flex flex-col items-center gap-6">
+      <!-- Inputs Row -->
+      <div class="flex flex-col sm:flex-row gap-2 w-full max-w-lg">
+        <input id="addrInput" type="text" placeholder="wallet address"
+               class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
+                      placeholder-gray-500 pixelated outline-none" />
+        <select id="chainSelect" title="Blockchain" aria-label="Blockchain"
+                class="px-2 py-2 rounded bg-gray-800 text-xs sm:text-sm outline-none">
+          <option value="base">Base</option>
+          <option value="sol">Solana</option>
+        </select>
+        <input id="nickInput" type="text" placeholder="nickname"
+               class="flex-1 px-3 py-2 rounded bg-gray-800 text-xs sm:text-sm
+                      placeholder-gray-500 pixelated outline-none" />
+      </div>
 
-    <!-- always-visible tracking panel -->
-    <div id="trackingPanel" class="w-full max-w-lg bg-gray-800 rounded-lg p-3">
-      <h3 class="text-sm sm:text-base font-semibold mb-2">
-        🗺️ Tracking (<span id="trackCount">0</span>)
-      </h3>
-      <div id="cardGrid"
-           class="flex flex-wrap gap-2 overflow-y-auto"></div>
+      <!-- Harpoon Button -->
+      <button id="harpoonBtn" disabled
+              class="w-full max-w-lg py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
+                     rounded pixelated text-xs sm:text-sm tracking-widest
+                     disabled:opacity-40 disabled:cursor-not-allowed">
+        HARPOON&nbsp;WHALE
+      </button>
+
+      <!-- Tracking Panel -->
+      <div id="trackingPanel" class="w-full max-w-lg bg-gray-800 rounded-lg p-3">
+        <h3 class="text-sm sm:text-base font-semibold mb-2">
+          🗺️ Tracking (<span id="trackCount">0</span>)
+        </h3>
+        <div id="cardGrid" class="flex flex-wrap gap-2 overflow-y-auto max-h-40"></div>
+      </div>
     </div>
   </div>
 
-  <!-- TX MODAL -->
+  <!-- TRANSACTION MODAL -->
   <div id="txModal"
        class="hidden fixed inset-0 bg-black/70 flex items-center justify-center">
     <div class="bg-gray-900 w-80 sm:w-96 rounded-lg p-4 space-y-3">
@@ -130,8 +135,8 @@
     // 2. Config & icons
     const BASE_KEY = "ET6GKQRZUYV4BZDXHKMQZXDZ25EGGHSZB4";
     const ENDPOINT = {
-      base: addr => 
-        `https://api.basescan.org/api?module=account&action=txlist`+
+      base: addr =>
+        `https://api.basescan.org/api?module=account&action=txlist` +
         `&address=${addr}&page=1&offset=10&sort=desc&apikey=${BASE_KEY}`
     };
     const ICON = {
@@ -141,7 +146,7 @@
         '<img src="sol-logo.png" alt="Solana" class="w-4 h-4 inline-block align-text-bottom"/>'
     };
 
-    // 3. Elements
+    // 3. Element refs
     const $ = id => document.getElementById(id);
     const diveStage    = $("diveStage"),
           harpoonStage = $("harpoonStage"),
@@ -154,12 +159,16 @@
           harpoonBtn   = $("harpoonBtn"),
           cardGrid     = $("cardGrid"),
           cnt          = $("trackCount"),
+          recentBody   = $("recentBody"),
           modal        = $("txModal"),
           spinner      = $("modalSpinner"),
           txUl         = $("txList");
     $("closeModal").onclick = () => modal.classList.add("hidden");
 
-    // 4. Render function (with debug log)
+    // 4. Track state
+    let tracked = [];
+
+    // 5. Render tracked wallets
     function cardHTML(o) {
       return `
         <div class="w-36 sm:w-40 p-2 rounded bg-gray-800 hover:bg-gray-700 cursor-pointer">
@@ -171,122 +180,115 @@
         </div>`;
     }
     function render(snapshot) {
-      const data = [];
-      snapshot.forEach(s => data.push(s.val()));
-      console.log("🔄 render data:", data);
-      cardGrid.innerHTML = data.map(cardHTML).join("");
-      data.forEach((_, i) => {
-        cardGrid.children[i].onclick = () => openModal(data[i].a, data[i].c);
+      tracked = [];
+      snapshot.forEach(s => tracked.push(s.val()));
+      cardGrid.innerHTML = tracked.map(cardHTML).join("");
+      tracked.forEach((w,i)=>{
+        cardGrid.children[i].onclick = ()=> openModal(w.a,w.c);
       });
-      cnt.textContent = data.length;
+      cnt.textContent = tracked.length;
+      updateRecent();
     }
     walletsRef.on("value", render);
 
-    // 5. Deep-dive animation
-    diveBtn.onclick = () => {
-      [logo, tag, diveBtn].forEach(e => e.classList.add("dive"));
+    // 6. Deep-dive animation
+    diveBtn.onclick = ()=>{
+      [logo,tag,diveBtn].forEach(e=>e.classList.add("dive"));
       diveBtn.disabled = true;
     };
-    logo.addEventListener("animationend", () => {
+    logo.addEventListener("animationend",()=>{
       diveStage.classList.add("hidden");
       harpoonStage.classList.remove("hidden");
       harpoonStage.classList.add("fadeUp");
       addrInput.focus();
     });
 
-    // 6. Validation
-    const ok = v =>
-      /^0x[a-f0-9]{40}$/i.test(v) ||
-      (v.length >= 32 && v.length <= 44);
-    const validate = () => {
-      harpoonBtn.disabled =
-        !ok(addrInput.value.trim()) ||
-        !nickInput.value.trim();
+    // 7. Validation
+    const ok = v=> /^0x[a-f0-9]{40}$/i.test(v)||(v.length>=32&&v.length<=44);
+    const validate = ()=> {
+      harpoonBtn.disabled = !ok(addrInput.value.trim())||!nickInput.value.trim();
     };
     addrInput.oninput = validate;
     nickInput.oninput = validate;
     chainSel.addEventListener("change", validate);
 
-    // 7. Harpoon (save + immediate render)
-    harpoonBtn.onclick = () => {
-      console.log("🔫 Harpoon clicked:", addrInput.value, nickInput.value, chainSel.value);
-      const a = addrInput.value.trim(),
-            n = nickInput.value.trim(),
-            c = chainSel.value;
-      if (!ok(a) || !n) return;
-
+    // 8. Harpoon
+    harpoonBtn.onclick = ()=>{
+      const a=addrInput.value.trim(),n=nickInput.value.trim(),c=chainSel.value;
+      if(!ok(a)||!n) return;
       walletsRef.push({a,c,n})
-        .then(ref => {
-          console.log("✅ Saved under key", ref.key);
-          // fetch fresh snapshot & render right away
-          return walletsRef.once("value");
-        })
-        .then(render)
-        .catch(err => {
-          alert("Error saving whale: " + err.message);
-          console.error(err);
-        });
-
-      addrInput.value = "";
-      nickInput.value = "";
-      harpoonBtn.disabled = true;
+        .then(()=> console.log("✅ Whale saved"))
+        .catch(e=>{alert(e.message);console.error(e);});
+      addrInput.value=""; nickInput.value=""; harpoonBtn.disabled=true;
     };
 
-    // 8. Fetch helpers
-    const fetchBase = u => fetch(u).then(r => r.json()).then(j => j.status==="1" ? j.result : []);
-    async function fetchSol(addr) {
-      try {
-        const body = JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "getSignaturesForAddress",
-          params: [addr, {limit:10}]
-        });
-        const j = await fetch("https://api.mainnet-beta.solana.com", {
-          method: "POST",
-          headers: {'Content-Type':'application/json'},
-          body
+    // 9. Fetch transactions
+    const fetchBase = u=>fetch(u).then(r=>r.json()).then(j=>j.status==="1"?j.result:[]);
+    async function fetchSol(addr){
+      try{
+        const body=JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[addr,{limit:10}]});
+        const j=await fetch("https://api.mainnet-beta.solana.com",{
+          method:"POST",headers:{"Content-Type":"application/json"},body
         }).then(r=>r.json());
         return Array.isArray(j.result)
-          ? j.result.map(o=>({hash:o.signature, timeStamp:o.blockTime, dir:"SOL", value:0}))
+          ? j.result.map(o=>({hash:o.signature,timeStamp:o.blockTime,dir:"SIG",value:0}))
           : [];
-      } catch {
-        return [];
-      }
+      }catch{return [];}
     }
-    const getTx = (a,c) =>
-      c==="base"
-        ? fetchBase(ENDPOINT.base(a))
-        : fetchSol(a);
+    const getTx=(a,c)=> c==="base"?fetchBase(ENDPOINT.base(a)):fetchSol(a);
 
-    // 9. Modal viewer
-    function openModal(addr,chain) {
+    // 10. Update recent table
+    async function updateRecent(){
+      const all=[];
+      await Promise.all(tracked.map(async w=>{
+        const txs=await getTx(w.a,w.c);
+        txs.forEach(t=>{
+          all.push({
+            time: t.timeStamp*1000,
+            wallet: w.n||w.a.slice(0,6)+"…",
+            token: w.c==="base"?"ETH":"SOL",
+            amount: w.c==="base"?(+t.value/1e18).toFixed(4):t.value.toFixed(4),
+            dir: w.c==="base"?(t.to?.toLowerCase()===w.a.toLowerCase()?"IN":"OUT"):"SIG"
+          });
+        });
+      }));
+      all.sort((a,b)=>b.time-a.time);
+      const top10=all.slice(0,10);
+      recentBody.innerHTML = top10.map(tx=>
+        `<tr>
+           <td class="px-2 py-1">${new Date(tx.time).toLocaleTimeString()}</td>
+           <td class="px-2 py-1">${tx.wallet}</td>
+           <td class="px-2 py-1">${tx.token}</td>
+           <td class="px-2 py-1">${tx.amount}</td>
+           <td class="px-2 py-1">${tx.dir}</td>
+         </tr>`
+      ).join("");
+    }
+    setInterval(updateRecent, 15000);
+    updateRecent();  // initial
+    // 11. Modal viewer
+    function openModal(addr,chain){
       spinner.classList.remove("hidden");
       txUl.classList.add("hidden");
-      txUl.innerHTML = "";
+      txUl.innerHTML="";
       modal.classList.remove("hidden");
       modal.classList.add("flex");
-
-      getTx(addr,chain).then(arr => {
+      getTx(addr,chain).then(arr=>{
         spinner.classList.add("hidden");
         txUl.classList.remove("hidden");
-        if (!arr.length) {
-          txUl.innerHTML = '<li class="text-center text-gray-500">No tx found</li>';
+        if(!arr.length){
+          txUl.innerHTML='<li class="text-center text-gray-500">No tx found</li>';
           return;
         }
-        arr.forEach(t => {
-          const dir = chain==="base"
-            ? (t.to?.toLowerCase()===addr.toLowerCase() ? "IN" : "OUT")
-            : "SIG";
-          const link = chain==="base"
-            ? `https://basescan.org/tx/${t.hash}`
-            : `https://solscan.io/tx/${t.hash}`;
-          const amt = chain==="base"
-            ? (+t.value/1e18).toFixed(4) + " ETH"
-            : "— SOL";
-          const li = document.createElement("li");
-          li.className = "p-2 rounded bg-gray-800";
-          li.innerHTML = `
+        arr.forEach(t=>{
+          const dir=chain==="base"?(t.to?.toLowerCase()===addr.toLowerCase()?"IN":"OUT"):"SIG";
+          const link=chain==="base"
+            ?`https://basescan.org/tx/${t.hash}`
+            :`https://solscan.io/tx/${t.hash}`;
+          const amt=chain==="base"?(+t.value/1e18).toFixed(4)+" ETH":"— SOL";
+          const li=document.createElement("li");
+          li.className="p-2 rounded bg-gray-800";
+          li.innerHTML=`
             <div class="flex justify-between">
               <span class="${dir==="IN"?"text-green-400":dir==="OUT"?"text-red-400":"text-cyan-400"}">${dir}</span>
               <span>${amt}</span>
@@ -294,7 +296,7 @@
             <a href="${link}" target="_blank" class="text-emerald-400 underline">
               ${t.hash.slice(0,10)}…
             </a>
-            <div class="text-gray-500">${new Date((t.timeStamp||0)*1000).toLocaleString()}</div>`;
+            <div class="text-gray-500">${new Date(t.timeStamp*1000).toLocaleString()}</div>`;
           txUl.appendChild(li);
         });
       });
